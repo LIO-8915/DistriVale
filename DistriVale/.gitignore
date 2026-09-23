@@ -1,1 +1,12 @@
 /target
+
+# Licensing (Lemon Squeezy) - secrets and local activation data, never commit
+.env
+.env.*
+!.env.example
+*license*.json
+*.key
+*.pem
+secrets.toml
+src-tauri/.env
+src-tauri/**/secrets/

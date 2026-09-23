@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <!-- Base palette inspired by the generated liquid-glass dashboard background -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071C2B"/>
+      <stop offset="0.28" stop-color="#0C4660"/>
+      <stop offset="0.58" stop-color="#B8D8E8"/>
+      <stop offset="0.8" stop-color="#E8F5F8"/>
+      <stop offset="1" stop-color="#86C6D9"/>
+    </linearGradient>
+
+    <radialGradient id="glow1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(270 130) rotate(28) scale(520 330)">
+      <stop offset="0" stop-color="#78E5FF" stop-opacity="0.55"/>
+      <stop offset="0.48" stop-color="#4FC0D9" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4FC0D9" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glow2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(1310 210) rotate(150) scale(520 360)">
+      <stop offset="0" stop-color="#E8FBFF" stop-opacity="0.88"/>
+      <stop offset="0.42" stop-color="#A7E9F2" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#A7E9F2" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glow3" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(950 720) rotate(-20) scale(600 310)">
+      <stop offset="0" stop-color="#62D0E8" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#B8E9F1" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#B8E9F1" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="softBlur80" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="80"/>
+    </filter>
+
+    <filter id="softBlur35" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="35"/>
+    </filter>
+
+    <filter id="noise" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.025 0.035" numOctaves="3" seed="17" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.065"/>
+      </feComponentTransfer>
+    </filter>
+
+    <filter id="liquid" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.022" numOctaves="3" seed="11" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="18"
+        xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#74D7EA" stop-opacity="0"/>
+      <stop offset="0.25" stop-color="#74D7EA" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#D8F7FB" stop-opacity="0.2"/>
+      <stop offset="0.78" stop-color="#5FC7DC" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#5FC7DC" stop-opacity="0"/>
+    </linearGradient>
+
+    <clipPath id="rounded">
+      <rect width="1600" height="900" rx="38"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <!-- Main atmospheric background -->
+    <rect width="1600" height="900" fill="url(#bg)"/>
+
+    <!-- Darker side vignette -->
+    <rect width="1600" height="900" fill="#04141F" opacity="0.14"/>
+
+    <!-- Large luminous regions -->
+    <ellipse cx="270" cy="130" rx="520" ry="330" fill="url(#glow1)" filter="url(#softBlur35)"/>
+    <ellipse cx="1310" cy="210" rx="520" ry="360" fill="url(#glow2)" filter="url(#softBlur35)"/>
+    <ellipse cx="950" cy="720" rx="600" ry="310" fill="url(#glow3)" filter="url(#softBlur35)"/>
+
+    <!-- Organic liquid shapes -->
+    <path d="M-120 620
+             C90 470, 165 520, 320 590
+             C475 662, 530 810, 730 832
+             C860 846, 940 770, 1030 730
+             C1180 663, 1320 688, 1450 790
+             C1540 861, 1620 850, 1710 812
+             L1710 980 L-120 980 Z"
+          fill="#0C4B63" opacity="0.25" filter="url(#softBlur35)" filter="url(#liquid)"/>
+
+    <path d="M-120 525
+             C160 395, 290 470, 410 535
+             C540 608, 610 612, 735 558
+             C890 491, 1010 488, 1138 560
+             C1285 644, 1438 627, 1710 466
+             L1710 760
+             C1520 858, 1400 862, 1220 775
+             C1050 694, 950 704, 805 767
+             C635 842, 475 821, 330 728
+             C180 634, 70 620, -120 708 Z"
+          fill="#DDF5FA" opacity="0.17" filter="url(#softBlur35)"/>
+
+    <path d="M-80 190
+             C110 80, 255 45, 430 92
+             C565 128, 635 112, 765 55
+             C905 -6, 1095 20, 1215 100
+             C1335 180, 1448 198, 1680 135
+             L1680 300
+             C1465 360, 1315 346, 1165 276
+             C1020 208, 906 206, 760 268
+             C598 337, 430 312, 312 262
+             C195 214, 72 246, -80 335 Z"
+          fill="#C9EEF6" opacity="0.20" filter="url(#softBlur35)"/>
+
+    <!-- Soft glass-like streaks -->
+    <g opacity="0.32" filter="url(#softBlur35)">
+      <path d="M40 110 C310 40, 530 75, 760 130 C980 182, 1180 92, 1550 120" stroke="#F3FCFF" stroke-width="28"/>
+      <path d="M10 400 C250 330, 430 365, 680 425 C920 483, 1160 390, 1580 430" stroke="#B2EAF3" stroke-width="22"/>
+      <path d="M25 760 C270 686, 430 714, 650 760 C900 812, 1150 720, 1590 760" stroke="#E5F9FC" stroke-width="26"/>
+    </g>
+
+    <!-- Bottom waves -->
+    <path d="M-50 815 C230 715, 470 770, 690 825 C900 878, 1100 800, 1650 726"
+          stroke="url(#wave)" stroke-width="120" fill="none" opacity="0.45" filter="url(#softBlur35)"/>
+    <path d="M-50 870 C230 790, 460 818, 690 866 C940 920, 1160 832, 1650 770"
+          stroke="#B8E9F1" stroke-opacity="0.14" stroke-width="38" fill="none"/>
+
+    <!-- Subtle blue glass blobs -->
+    <g opacity="0.20" filter="url(#softBlur35)">
+      <ellipse cx="120" cy="470" rx="180" ry="120" fill="#25A7C7"/>
+      <ellipse cx="1450" cy="480" rx="210" ry="160" fill="#3C92AE"/>
+      <ellipse cx="870" cy="170" rx="180" ry="105" fill="#FFFFFF"/>
+    </g>
+
+    <!-- Fine noise: ideal for textured glass -->
+    <rect x="0" y="0" width="1600" height="900" filter="url(#noise)" opacity="0.9"/>
+
+    <!-- Edge vignette -->
+    <rect width="1600" height="900" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
+  </g>
+</svg>
