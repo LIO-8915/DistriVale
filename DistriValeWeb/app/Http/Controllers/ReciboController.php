@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\DetalleReciboVale;
 use App\Models\ReciboConsolidado;
+use App\Support\Quincena;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -49,6 +50,7 @@ class ReciboController extends Controller
             $recibo = ReciboConsolidado::create([
                 'id_cliente' => $cliente->id_cliente,
                 'nombre_distribuidora' => $request->nombre_distribuidora,
+                'periodo_quincena' => Quincena::paraFecha(\Carbon\Carbon::parse($request->fecha_corte))['periodo_quincena'],
                 'fecha_corte' => $request->fecha_corte,
                 'total_oportuno' => 0,
                 'total_extemporaneo' => 0,

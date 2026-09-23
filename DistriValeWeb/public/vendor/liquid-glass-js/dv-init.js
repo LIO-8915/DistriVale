@@ -20,16 +20,25 @@ document.addEventListener('DOMContentLoaded', function () {
         avatarSlot.replaceWith(avatarGlass.element);
     }
 
-    // --- Notification bell (circular) ---
+    // --- Notification bell (circular): opens the #modalVencimientos modal ---
     var bellSlot = document.querySelector('[data-glass-bell]');
     if (bellSlot) {
+        var hasAlerts = bellSlot.dataset.hasAlerts === '1';
         var bellGlass = new Container({ type: 'circle', borderRadius: 23, tintOpacity: 0.4 });
         bellGlass.element.classList.add('dv-bell-glass');
+        bellGlass.element.style.cursor = 'pointer';
         var bellInner = document.createElement('div');
-        bellInner.className = 'dv-bell-inner';
+        bellInner.className = 'dv-bell-inner' + (hasAlerts ? ' has-alerts' : '');
         bellInner.innerHTML = '<i class="bi bi-bell"></i>';
         bellGlass.addChild({ element: bellInner });
         bellSlot.replaceWith(bellGlass.element);
+
+        bellGlass.element.addEventListener('click', function () {
+            var modalEl = document.getElementById('modalVencimientos');
+            if (modalEl && window.bootstrap) {
+                new bootstrap.Modal(modalEl).show();
+            }
+        });
     }
 
     // --- Sidebar active item: host the real <a> inside a glass pill ---

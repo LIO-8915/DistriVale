@@ -34,8 +34,31 @@ class Cliente extends Model
         return $this->hasMany(ReciboConsolidado::class, 'id_cliente', 'id_cliente');
     }
 
+    public function notas(): HasMany
+    {
+        return $this->hasMany(NotaCliente::class, 'id_cliente', 'id_cliente')->latest();
+    }
+
     public function saldoTotal(): float
     {
-        return (float) $this->vales()->where('estado', '!=', 'LIQUIDADO')->sum('saldo_pendiente');
+        // Uses the loaded `vales` collection (avoids an N+1 query when the
+        // relation was already eager-loaded, e.g. in listing tables).
+        return (float) $this->vales
+            ->where('estado', '!=', 'LIQUIDADO')
+            ->sum(fn ($v) => (float) $v->saldo_pendiente);
+    }
+
+    public function ultimoPago(): ?DetalleReciboVale
+    {
+        return DetalleReciboVale::whereHas('vale', fn ($q) => $q->where('id_cliente', $this->id_cliente))
+            ->latest('created_at')
+            ->first();
+    }
+
+    public function financierasNombres(): string
+    {
+        $nombres = $this->vales->pluck('financiera.nombre')->unique()->values();
+
+        return $nombres->count() > 1 ? 'Varias' : ($nombres->first() ?? '—');
     }
 }

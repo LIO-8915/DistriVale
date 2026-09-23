@@ -17,6 +17,7 @@ class ReciboConsolidado extends Model
     protected $fillable = [
         'id_cliente',
         'nombre_distribuidora',
+        'periodo_quincena',
         'fecha_corte',
         'total_oportuno',
         'total_extemporaneo',

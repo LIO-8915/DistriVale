@@ -242,7 +242,7 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 @hasSection('actions') <div>@yield('actions')</div> @endif
-                <div data-glass-bell></div>
+                <div data-glass-bell data-has-alerts="{{ $vencimientos->count() > 0 ? '1' : '0' }}"></div>
                 <div class="dv-user">
                     <div data-glass-avatar data-initials="EV"></div>
                     <div>
@@ -275,6 +275,31 @@
             @yield('content')
         </div>
     </main>
+
+    <!-- Vencimientos: auto-calculated from vales in EN_MORA, shared to every page via a view composer -->
+    <div class="modal fade" id="modalVencimientos" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content" style="border-radius: 18px; border: none;">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Pagos vencidos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    @forelse ($vencimientos as $v)
+                        <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                            <div>
+                                <div class="fw-semibold">{{ $v->cliente->nombre_completo }}</div>
+                                <div class="text-muted small">{{ $v->financiera->nombre }} · Vale {{ $v->folio_vale }}</div>
+                            </div>
+                            <div class="text-danger fw-bold">${{ number_format($v->cuota_quincenal, 2) }}</div>
+                        </div>
+                    @empty
+                        <p class="text-muted text-center py-4 mb-0">Sin pagos vencidos por el momento.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
