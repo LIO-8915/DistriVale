@@ -48,8 +48,10 @@ class LiquidacionController extends Controller
     public function create()
     {
         $financieras = Financiera::where('activo', true)->orderBy('nombre')->get();
+        $quincenas = Quincena::listaReciente();
+        $actual = Quincena::actual()['periodo_quincena'];
 
-        return view('liquidaciones.create', compact('financieras'));
+        return view('liquidaciones.create', compact('financieras', 'quincenas', 'actual'));
     }
 
     public function store(Request $request)

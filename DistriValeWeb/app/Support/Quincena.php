@@ -17,6 +17,26 @@ class Quincena
         return static::paraFecha(now());
     }
 
+    /**
+     * The most recent quincenas up to and including the current one, newest
+     * first. Used to populate period pickers (e.g. Registrar liquidación)
+     * without depending on records already existing for that period.
+     */
+    public static function listaReciente(int $cantidad = 12): array
+    {
+        $lista = [];
+        $fecha = now();
+
+        for ($i = 0; $i < $cantidad; $i++) {
+            $lista[] = static::paraFecha($fecha);
+            $fecha = $fecha->day <= 15
+                ? $fecha->copy()->subMonth()->endOfMonth()
+                : $fecha->copy()->startOfMonth()->subDay();
+        }
+
+        return $lista;
+    }
+
     public static function paraFecha(Carbon $fecha): array
     {
         if ($fecha->day <= 15) {

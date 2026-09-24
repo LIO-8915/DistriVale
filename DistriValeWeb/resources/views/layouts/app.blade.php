@@ -27,7 +27,7 @@
         body {
             overflow: hidden;
             background: url('{{ asset('images/fondo-app.png') }}') center / cover fixed, #0c4660;
-            color: #1c2433;
+            color: #000;
         }
 
         .dv-titlebar { -webkit-app-region: drag; height: 6px; }
@@ -64,7 +64,7 @@
         .dv-sidebar a {
             color: #aab4c6; display: flex; align-items: center; gap: .75rem;
             padding: .8rem .9rem; text-decoration: none; font-size: .96rem; font-weight: 500;
-            border-radius: 13px; margin-bottom: 4px; transition: background .15s ease, color .15s ease;
+            border-radius: .75rem; margin-bottom: 4px; transition: background .15s ease, color .15s ease;
         }
         .dv-sidebar a i { font-size: 1.15rem; width: 20px; text-align: center; opacity: .85; }
         .dv-sidebar a:hover { background: rgba(255, 255, 255, .06); color: #fff; }
@@ -80,6 +80,8 @@
         }
         .dv-sidebar .glass-container a.dv-glass-hosted { margin-bottom: 0; }
 
+        .glass-container .glass-container-pill .glass-fill-accent { border-radius: .75rem; background: none !important; }
+
         /* Topbar */
         .dv-topbar {
             position: sticky; top: 0; z-index: 5;
@@ -92,11 +94,11 @@
             border-bottom: 1px solid transparent;
             border-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(150,195,255,.6) 20%, rgba(255,255,255,.9) 50%, rgba(255,175,215,.55) 80%, rgba(255,255,255,0) 100%) 1;
         }
-        .dv-topbar .dv-title { font-weight: 700; font-size: 1.6rem; letter-spacing: -.01em; margin: 0; color: #101828; }
-        .dv-topbar .dv-subtitle { font-size: .95rem; color: #45526b; margin: .2rem 0 0; }
+        .dv-topbar .dv-title { font-weight: 700; font-size: 1.6rem; letter-spacing: -.01em; margin: 0; color: #000; }
+        .dv-topbar .dv-subtitle { font-size: .95rem; color: #000; margin: .2rem 0 0; }
         .dv-user { display: flex; align-items: center; gap: .75rem; }
-        .dv-user .name { font-size: 1rem; font-weight: 600; line-height: 1.2; color: #16202f; }
-        .dv-user .role { font-size: .82rem; color: #58657c; }
+        .dv-user .name { font-size: 1rem; font-weight: 600; line-height: 1.2; color: #000; }
+        .dv-user .role { font-size: .82rem; color: #000; }
         /* Avatar (.dv-avatar-glass) and bell (.dv-bell-glass) are built at
            runtime by dv-init.js as real liquid-glass-js Containers — see
            glass-fills.css for their circular sizing/inner content styles. */
@@ -143,19 +145,21 @@
                their square corners poke out past the card's rounded ones. */
             overflow: hidden;
         }
-        .stat-card .stat-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -.01em; color: #101828; }
+        .stat-card .stat-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -.01em; color: #000; }
         .stat-card .text-muted { font-size: .9rem !important; }
         .stat-card .stat-icon {
             width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center;
             justify-content: center; font-size: 1.2rem; color: #fff;
         }
-        .card h6 { font-size: 1.08rem; font-weight: 700; color: #101828; }
+        .card h6 { font-size: 1.08rem; font-weight: 700; color: #000; }
         /* Base text color set once on .card and inherited — badges, links and
            .text-muted already carry their own explicit (higher-specificity)
            colors, so inheritance never fights them; this just darkens the
-           plain unstyled text (labels, cell values, headings). */
-        .card { color: #16202f; }
-        .card .text-muted { color: #4b5568 !important; }
+           plain unstyled text (labels, cell values, headings). Kept black
+           throughout for contrast, except the .text-success/.text-danger
+           saldo amounts, which keep Bootstrap's green/red. */
+        .card { color: #000; }
+        .card .text-muted { color: #000 !important; }
         .icon-blue { background: linear-gradient(135deg, #4f7cff, #7aa2ff); }
         .icon-orange { background: linear-gradient(135deg, #ff9f43, #ffb976); }
         .icon-purple { background: linear-gradient(135deg, #8b6bff, #a98bff); }
@@ -164,12 +168,12 @@
         .table { margin-bottom: 0; }
         .table thead th {
             font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;
-            color: #43516b; border-top: none; border-bottom: 2px solid rgba(20, 30, 50, .14);
+            color: #000; border-top: none; border-bottom: 2px solid rgba(20, 30, 50, .14);
             font-weight: 700; padding: 1.05rem 1.15rem;
         }
         .table td {
             vertical-align: middle; border-bottom: 1px solid rgba(20, 30, 50, .1);
-            font-size: 1rem; color: #16202f; padding: 1rem 1.15rem;
+            font-size: 1rem; color: #000; padding: 1rem 1.15rem;
         }
         .table tbody tr:hover { background: rgba(79, 124, 255, .07); }
 

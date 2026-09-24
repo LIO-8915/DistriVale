@@ -9,7 +9,13 @@
 
         <div class="mb-3" style="max-width: 320px;">
             <label class="form-label">Periodo de quincena</label>
-            <input type="text" name="periodo_quincena" class="form-control" placeholder="ej. 15 DE SEPTIEMBRE 2026" value="{{ old('periodo_quincena') }}" required maxlength="50">
+            <select name="periodo_quincena" class="form-select" required>
+                @foreach ($quincenas as $q)
+                    <option value="{{ $q['periodo_quincena'] }}" @selected(old('periodo_quincena', $actual) === $q['periodo_quincena'])>
+                        {{ $q['label'] }}
+                    </option>
+                @endforeach
+            </select>
         </div>
 
         <div class="table-responsive mb-3">

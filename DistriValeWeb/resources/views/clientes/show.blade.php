@@ -175,7 +175,7 @@
     .dv-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
     .dv-chip {
         border: 1px solid rgba(0,0,0,.1); background: rgba(255,255,255,.5); border-radius: 999px;
-        padding: .45rem 1rem; font-size: .85rem; font-weight: 600; color: #4b5568; cursor: pointer;
+        padding: .45rem 1rem; font-size: .85rem; font-weight: 600; color: #000; cursor: pointer;
     }
     .dv-chip.active { background: linear-gradient(135deg, #4f7cff, #6f9bff); color: #fff; border-color: transparent; }
 </style>
