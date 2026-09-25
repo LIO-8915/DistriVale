@@ -498,6 +498,9 @@
             <a href="{{ route('liquidaciones.index') }}" title="Liquidación" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('liquidaciones.*') ? 'active' : '' }}">
                 <i class="bi bi-calculator"></i> <span class="dv-label">Liquidación</span>
             </a>
+            <a href="{{ route('drive.index') }}" title="Respaldo" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('drive.*') ? 'active' : '' }}">
+                <i class="bi bi-cloud-arrow-up"></i> <span class="dv-label">Respaldo</span>
+            </a>
         </nav>
 
         <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> <span class="dv-label">Sistema local</span></div>

@@ -128,7 +128,38 @@ php artisan serve
 
 y abrir `http://127.0.0.1:8000` en el navegador. Todo el trabajo de módulos (clientes, vales, financieras, recibos, liquidaciones) se prueba así. Tauri solo entra en juego al momento de empaquetar la app final para la usuaria.
 
-## 7. Resumen de responsabilidades por carpeta
+## 7. Respaldo de la base de datos a Google Drive
+
+`DistriValeWeb` tiene una pantalla ("Respaldo" en el sidebar) para subir/bajar manualmente `database.sqlite` a Google Drive — ver `app/Services/GoogleDriveService.php` y `app/Http/Controllers/GoogleDriveController.php`. No es sincronización en tiempo real: es "guardar en la nube" / "traer de la nube" a demanda, con un solo nivel de deshacer para la restauración.
+
+Para que funcione hace falta un cliente OAuth propio (gratis, no requiere tarjeta):
+
+1. Entrar a [Google Cloud Console](https://console.cloud.google.com/) con la cuenta de Google del negocio y crear un proyecto nuevo (cualquier nombre).
+2. **APIs & Services > Library**: buscar "Google Drive API" y habilitarla.
+3. **APIs & Services > OAuth consent screen**: tipo "External", dejarla en modo "Testing" (no hace falta publicarla ni pasar la revisión de Google porque el scope usado, `drive.file`, es de los que no la requieren) y agregar la cuenta de Gmail que va a usar la app como "Test user".
+4. **APIs & Services > Credentials > Create Credentials > OAuth client ID**, tipo **"Desktop app"**. Copiar el Client ID y el Client Secret que genera.
+5. Pegarlos en `DistriValeWeb/.env`:
+   ```
+   GOOGLE_DRIVE_CLIENT_ID=...
+   GOOGLE_DRIVE_CLIENT_SECRET=...
+   ```
+
+No hace falta registrar la URL de redirección exacta: Google permite automáticamente cualquier puerto en `http://127.0.0.1:*`/`http://localhost:*` para clientes tipo "Desktop app" (la llamada "loopback exception"), lo cual encaja con que `php artisan serve` arranca en un puerto distinto cada vez.
+
+Sin esas dos variables cargadas, la pantalla de Respaldo muestra un aviso y el botón de conectar queda deshabilitado — el resto de la app funciona igual.
+
+### 7.1. Pendiente antes de distribuir a más de un puñado de negocios
+
+El cliente OAuth queda embebido en la app y lo comparten todas las instalaciones distribuidas. Mientras la pantalla de consentimiento esté en modo **"Testing"** (el estado por defecto, el que se usa hoy en desarrollo), Google solo deja autorizar a las cuentas que se agreguen a mano como "test user" — **tope de 100 cuentas en total**. Las cuotas de la propia API de Drive no son el problema (son muy altas para este uso); el tope de 100 es el límite real.
+
+**Antes de repartir la app a más de ~100 negocios**, pasar la pantalla de consentimiento OAuth a **"In production"** en Google Cloud Console (APIs & Services > OAuth consent screen > Publish App). Es **completamente gratis** — no tiene costo ni requiere tarjeta — y como el único scope pedido (`drive.file`) es "no sensible", no dispara el proceso de revisión manual de seguridad de Google (ese sí puede tardar semanas y es para apps que piden scopes más invasivos). Lo que sí pide para publicar:
+
+- Nombre de la app, logo, correo de soporte (datos que ya se tienen).
+- Una URL de política de privacidad — alcanza con una página estática simple (gratis en GitHub Pages, o incluso un Google Doc publicado como sitio), no hace falta un dominio propio.
+
+Con eso publicado, cualquier cantidad de negocios puede conectar su Drive sin tope de usuarios. Puede quedar un cartel de "esta app no está verificada" con un clic extra la primera vez que cada negocio conecta su cuenta — desaparece solo si además se completa la verificación completa de la app (también gratis, opcional).
+
+## 8. Resumen de responsabilidades por carpeta
 
 | Carpeta | Contiene | Se toca durante... |
 |---|---|---|

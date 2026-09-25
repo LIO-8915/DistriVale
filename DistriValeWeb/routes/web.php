@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancieraController;
+use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\LiquidacionController;
 use App\Http\Controllers\ReciboController;
 use App\Http\Controllers\ValeController;
@@ -29,4 +30,14 @@ Route::controller(LiquidacionController::class)->prefix('liquidaciones')->name('
     Route::get('/nueva', 'create')->name('create');
     Route::post('/', 'store')->name('store');
     Route::get('/pdf', 'pdf')->name('pdf');
+});
+
+Route::controller(GoogleDriveController::class)->prefix('drive')->name('drive.')->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::post('/conectar', 'connect')->name('connect');
+    Route::get('/callback', 'callback')->name('callback');
+    Route::post('/desconectar', 'disconnect')->name('disconnect');
+    Route::post('/respaldar', 'backup')->name('backup');
+    Route::post('/restaurar', 'restore')->name('restore');
+    Route::post('/deshacer', 'rollback')->name('rollback');
 });
