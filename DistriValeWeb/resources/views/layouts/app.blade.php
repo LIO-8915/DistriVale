@@ -4,12 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <title>DistriVale - @yield('title', 'Panel')</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('vendor/liquid-glass-js/glass.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendor/liquid-glass-js/glass-fills.css') }}">
+    <!-- Every asset below is vendored locally (public/vendor/) instead of loaded from a CDN:
+         this app runs inside a Tauri/WebView2 desktop shell that may have no internet
+         connection, and a CDN-loaded stylesheet/font/script simply fails to load offline. -->
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/fonts/inter/inter.css') }}">
+    <style>
+        /* Reveal gate: keeps the page hidden behind #dv-preloader until fonts,
+           images and scripts have actually finished loading, then swaps to the
+           fully-rendered page in one shot — no per-element pop-in, no FOUT
+           reflow when Inter swaps in. See the script at the end of <body>. */
+        body > *:not(#dv-preloader) { visibility: hidden; }
+        html.dv-ready body > *:not(#dv-preloader) { visibility: visible; }
+        #dv-preloader {
+            position: fixed; inset: 0; z-index: 9999;
+            background: url('{{ asset('images/fondo-app.png') }}') center / cover fixed, #0c4660;
+            display: flex; align-items: center; justify-content: center;
+        }
+        html.dv-ready #dv-preloader { display: none; }
+        #dv-preloader .dv-loading { text-align: center; color: #fff; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        #dv-preloader .brand {
+            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 1.1rem;
+            background: linear-gradient(135deg, #4f7cff, #7aa2ff);
+            box-shadow: 0 8px 24px rgba(79, 124, 255, .45);
+        }
+        #dv-preloader h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .35rem; }
+        #dv-preloader p { font-size: .85rem; color: #aab4c6; margin: 0; }
+        #dv-preloader .dv-spinner {
+            width: 26px; height: 26px; margin: 1.25rem auto 0;
+            border: 3px solid rgba(255, 255, 255, .2); border-top-color: #7aa2ff;
+            border-radius: 50%; animation: dv-spin .8s linear infinite;
+        }
+        @keyframes dv-spin { to { transform: rotate(360deg); } }
+    </style>
     <style>
         :root {
             --dv-sidebar-w: 232px;
@@ -68,19 +96,16 @@
         }
         .dv-sidebar a i { font-size: 1.15rem; width: 20px; text-align: center; opacity: .85; }
         .dv-sidebar a:hover { background: rgba(255, 255, 255, .06); color: #fff; }
-        /* The active item's pill background is now a real liquid-glass-js
-           Container (see dv-init.js) — .dv-glass-hosted just strips this
-           anchor's own background so it doesn't double up. The library's
-           default .glass-container adds its own padding/gap, which stacked
-           on top of the anchor's own padding and made the pill oversized
-           and misaligned vs. the other rows — zero it out here so the pill
-           matches every other row exactly, only the fill differs. */
-        .dv-sidebar .glass-container {
-            padding: 0; gap: 0; margin-bottom: 4px; display: block;
+        /* Active nav pill: plain CSS gradient + backdrop-filter instead of a
+           liquid-glass-js WebGL Container wrapping the <a> — same look, no
+           JS DOM replacement after DOMContentLoaded (which used to make the
+           active item visibly "pop in" a beat after the rest of the page). */
+        .dv-sidebar a.active {
+            color: #fff; background: linear-gradient(135deg, rgba(79, 124, 255, .9), rgba(111, 155, 255, .9));
+            -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
+            box-shadow: 0 6px 16px rgba(79, 124, 255, .35);
         }
-        .dv-sidebar .glass-container a.dv-glass-hosted { margin-bottom: 0; }
-
-        .glass-container .glass-container-pill .glass-fill-accent { border-radius: .75rem; background: none !important; }
+        .dv-sidebar a.active i { opacity: 1; }
 
         /* Topbar */
         .dv-topbar {
@@ -99,9 +124,43 @@
         .dv-user { display: flex; align-items: center; gap: .75rem; }
         .dv-user .name { font-size: 1rem; font-weight: 600; line-height: 1.2; color: #000; }
         .dv-user .role { font-size: .82rem; color: #000; }
-        /* Avatar (.dv-avatar-glass) and bell (.dv-bell-glass) are built at
-           runtime by dv-init.js as real liquid-glass-js Containers — see
-           glass-fills.css for their circular sizing/inner content styles. */
+
+        /* Glass chips: avatar, notification bell and dashboard quick-access
+           buttons. Plain CSS backdrop-filter instead of the old WebGL lens
+           over an html2canvas snapshot of the page — same frosted-glass look,
+           natively GPU-composited by WebView2/Chromium, no CDN dependency
+           (html2canvas) and no post-load JS swap-in. Color comes from a
+           semi-transparent gradient painted under the blur, same technique
+           as .card below. */
+        .dv-glass-chip {
+            -webkit-backdrop-filter: blur(18px) saturate(200%); backdrop-filter: blur(18px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, .45);
+            box-shadow: 0 8px 20px rgba(30, 41, 59, .18), inset 0 1px 1px rgba(255, 255, 255, .5);
+        }
+        .glass-fill-blue { background: linear-gradient(135deg, rgba(79, 124, 255, .88), rgba(122, 162, 255, .88)); }
+        .glass-fill-purple { background: linear-gradient(135deg, rgba(139, 107, 255, .88), rgba(169, 139, 255, .88)); }
+        .glass-fill-orange { background: linear-gradient(135deg, rgba(255, 159, 67, .88), rgba(255, 185, 118, .88)); }
+        .glass-fill-green { background: linear-gradient(135deg, rgba(43, 196, 138, .88), rgba(87, 217, 165, .88)); }
+
+        .dv-avatar-glass, .dv-bell-glass {
+            width: 46px; height: 46px; border-radius: 23px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .dv-avatar-glass .dv-avatar-inner { color: #fff; font-weight: 700; font-size: 1rem; }
+        .dv-bell-glass { cursor: pointer; padding: 0; background: rgba(255, 255, 255, .55); appearance: none; font: inherit; }
+        .dv-bell-glass .dv-bell-inner { color: #33415a; font-size: 1.15rem; position: relative; }
+        .dv-bell-glass .dv-bell-inner.has-alerts::after {
+            content: ""; position: absolute; top: -3px; right: -4px; width: 8px; height: 8px;
+            border-radius: 50%; background: #ff5c72; border: 2px solid #fff;
+        }
+
+        /* Dashboard quick-access buttons */
+        .glass-quick-btn {
+            display: flex; align-items: center; gap: .5rem; width: 100%;
+            padding: .7rem 1rem; border-radius: .75rem; text-decoration: none;
+            color: #fff; font-weight: 600; font-size: .88rem; cursor: pointer;
+        }
+        .glass-quick-btn:hover { color: #fff; filter: brightness(1.06); }
 
         .dv-main { margin-left: var(--dv-sidebar-w); height: 100vh; overflow-y: auto; padding: 1.5rem 1.75rem 2.5rem; }
         .dv-content { padding-top: .5rem; }
@@ -208,6 +267,16 @@
     </style>
 </head>
 <body>
+    <div id="dv-preloader">
+        <div class="dv-loading">
+            <div class="brand"></div>
+            <h1>DistriVale</h1>
+            <p>Cargando…</p>
+            <div class="dv-spinner"></div>
+        </div>
+    </div>
+    <noscript><style>body > *:not(#dv-preloader) { visibility: visible !important; } #dv-preloader { display: none !important; }</style></noscript>
+
     <div class="dv-titlebar"></div>
     <nav class="dv-sidebar">
         <div class="brand">
@@ -246,9 +315,13 @@
             </div>
             <div class="d-flex align-items-center gap-3">
                 @hasSection('actions') <div>@yield('actions')</div> @endif
-                <div data-glass-bell data-has-alerts="{{ $vencimientos->count() > 0 ? '1' : '0' }}"></div>
+                <button type="button" class="dv-glass-chip dv-bell-glass" data-bs-toggle="modal" data-bs-target="#modalVencimientos">
+                    <span class="dv-bell-inner{{ $vencimientos->count() > 0 ? ' has-alerts' : '' }}"><i class="bi bi-bell"></i></span>
+                </button>
                 <div class="dv-user">
-                    <div data-glass-avatar data-initials="EV"></div>
+                    <div class="dv-glass-chip dv-avatar-glass glass-fill-blue">
+                        <span class="dv-avatar-inner">EV</span>
+                    </div>
                     <div>
                         <div class="name">Elia Véliz</div>
                         <div class="role">Administradora</div>
@@ -305,16 +378,29 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- liquid-glass-js: vendored (no npm/CDN bundle exists upstream), used only for
-         fixed chrome (avatar, bell, active nav pill, dashboard quick-access buttons).
-         Needs html2canvas to snapshot the page once, then renders a WebGL lens per element. -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="{{ asset('vendor/liquid-glass-js/container.js') }}"></script>
-    <script src="{{ asset('vendor/liquid-glass-js/button.js') }}"></script>
-    <script src="{{ asset('vendor/liquid-glass-js/dv-init.js') }}"></script>
+    <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 
     @stack('scripts')
+
+    <script>
+        // Reveal gate: the whole page starts hidden behind #dv-preloader (see
+        // <head>). Wait for window 'load' (scripts, stylesheets and images —
+        // including the background photo) AND document.fonts.ready (Inter)
+        // before showing anything, so the app appears fully formed in one
+        // shot instead of assets/elements popping in one after another.
+        (function () {
+            function fontsReady() {
+                return (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+            }
+            var pageLoaded = new Promise(function (resolve) {
+                if (document.readyState === 'complete') resolve();
+                else window.addEventListener('load', resolve);
+            });
+            function reveal() { document.documentElement.classList.add('dv-ready'); }
+            Promise.all([pageLoaded, fontsReady()]).then(reveal);
+            // Safety net: never leave the app hidden if a resource stalls.
+            setTimeout(reveal, 4000);
+        })();
+    </script>
 </body>
 </html>

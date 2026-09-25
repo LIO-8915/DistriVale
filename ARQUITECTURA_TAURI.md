@@ -5,7 +5,7 @@ Este documento describe cómo se integran los dos proyectos del repositorio:
 - **[DistriValeWeb/](DistriValeWeb/)** — Aplicación Laravel 13 (PHP 8.5) que contiene toda la lógica de negocio, modelos, controladores, vistas y la base de datos SQLite.
 - **[DistriVale/](DistriVale/)** — Shell de escritorio en Tauri (Rust) que empaqueta Laravel como un programa nativo de Windows usando WebView2.
 
-> **Estado actual:** `DistriVale/` es todavía un crate de Rust base (`cargo new`), sin inicializar como proyecto Tauri real (falta `src-tauri/tauri.conf.json`, `Cargo.toml` con dependencias de Tauri, y el frontend). La sección 5 describe los pasos para completar esa inicialización.
+> **Estado actual:** `DistriVale/` ya es un proyecto Tauri real y usable para desarrollo: tiene `tauri.conf.json`, `build.rs`, iconos y un `main.rs` que arranca `php artisan serve` sobre `DistriValeWeb/` en un puerto libre, espera a que responda y navega la ventana principal hacia él (matando el proceso de PHP al cerrar). Ejecutar con `cargo run` desde `DistriVale/` (requiere `php` en el `PATH` y `DistriValeWeb/` con `composer install` ya corrido). Lo que falta es el **empaquetado final** para distribuir un instalador a usuarias sin PHP instalado — ver la sección 5, pasos 2 y 4 (sidecar de PHP portable, copia de `DistriValeWeb/` a `resources/app` sin `.env`/`vendor` de dev).
 
 ## 1. Flujo conceptual
 
@@ -90,17 +90,13 @@ La separación entre **binarios de la app** (reinstalables) y **datos del usuari
 
 Este patrón (arrancar un servidor PHP local como *sidecar* de Tauri) es el mecanismo estándar para empaquetar apps PHP/Laravel como aplicaciones de escritorio, y es compatible con `tauri.conf.json > bundle > externalBin`.
 
-## 5. Pasos pendientes para inicializar Tauri correctamente
+## 5. Pasos pendientes para el empaquetado final
 
-El crate actual en `DistriVale/` solo tiene `Cargo.toml` y un `main.rs` con "Hello, world!". Para llegar al flujo descrito arriba:
+`DistriVale/` ya tiene `tauri.conf.json`, `build.rs`, íconos (`icons/`), una pantalla de carga (`dist/index.html`) y un `main.rs` funcional que arranca `php artisan serve` apuntando a `DistriValeWeb/`, espera a que el puerto responda y navega la ventana hacia él — ver el paso 1 y 3 de abajo, ya resueltos. Esto es **usable en desarrollo** (`cargo run` desde `DistriVale/`, con PHP del sistema en el `PATH`), pero todavía depende de que la usuaria final tenga PHP instalado. Para llegar a un instalador distribuible sin esa dependencia falta:
 
-1. **Inicializar Tauri de verdad** (desde `DistriVale/`):
-   ```powershell
-   npm create tauri-app@latest .   # o cargo install tauri-cli; cargo tauri init
-   ```
-   Esto genera `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` con las dependencias de Tauri, y el `identifier` de la app.
+1. ~~Inicializar Tauri de verdad~~ — hecho: `tauri.conf.json`, `build.rs` (`tauri_build::build()`), `icons/`.
 
-2. **Configurar el sidecar de PHP** en `tauri.conf.json`:
+2. **Configurar el sidecar de PHP portable** en `tauri.conf.json` (hoy `main.rs` invoca el `php` del `PATH`, no un binario embebido):
    ```json
    {
      "bundle": {
@@ -109,12 +105,9 @@ El crate actual en `DistriVale/` solo tiene `Cargo.toml` y un `main.rs` con "Hel
      }
    }
    ```
-   `binaries/php-x86_64-pc-windows-msvc.exe` sería el PHP Portable, renombrado según convención de sidecars de Tauri.
+   `binaries/php-x86_64-pc-windows-msvc.exe` sería el PHP Portable, renombrado según convención de sidecars de Tauri. `main.rs` debe cambiar de `Command::new("php")` a resolver el sidecar vía `tauri::process::Command::new_sidecar("php")`.
 
-3. **Escribir el `main.rs`** con:
-   - Hook `setup()` que prepara `%APPDATA%\DistriVale`, lanza el sidecar PHP y guarda el `Child` handle en el estado de Tauri.
-   - Handler de `on_window_event(CloseRequested)` que mata el proceso PHP antes de salir.
-   - (Opcional) comandos Tauri (`#[tauri::command]`) para diálogos nativos de respaldo/restauración de `database.sqlite`.
+3. ~~Escribir el `main.rs`~~ — hecho: `setup()` lanza el proceso PHP y guarda el `Child` en el estado de Tauri; `on_window_event(CloseRequested)` lo mata. Pendiente (opcional): preparar `%APPDATA%\DistriVale` con `database.sqlite` y `.env` propios (hoy usa directamente el `.env`/`database.sqlite` de `DistriValeWeb/`), y comandos Tauri para respaldo/restauración de la base.
 
 4. **Script de build** (`package.json` o `build.rs`) que:
    - Corre `composer install --no-dev --optimize-autoloader` dentro de `DistriValeWeb/`.
@@ -122,7 +115,7 @@ El crate actual en `DistriVale/` solo tiene `Cargo.toml` y un `main.rs` con "Hel
    - Copia `DistriValeWeb/` (sin `.env`, sin `node_modules`, sin `database/database.sqlite` de desarrollo) a `DistriVale/resources/app/`.
    - Descarga/incluye el binario de PHP Portable x64 NTS en `DistriVale/binaries/`.
 
-5. **`cargo tauri build`** genera el instalador `.msi`/`.exe` final para Windows.
+5. **`cargo tauri build`** (requiere `cargo install tauri-cli`, no instalado todavía en este entorno) genera el instalador `.msi`/`.exe` final para Windows.
 
 ## 6. Desarrollo local (sin empaquetar)
 

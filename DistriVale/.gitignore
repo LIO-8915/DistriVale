@@ -1,4 +1,5 @@
 /target
+/gen
 
 # Licensing (Lemon Squeezy) - secrets and local activation data, never commit
 .env

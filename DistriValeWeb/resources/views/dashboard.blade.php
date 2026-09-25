@@ -148,10 +148,10 @@
         <div class="card p-3 h-100">
             <h6 class="mb-3">Accesos rápidos</h6>
             <div class="d-flex flex-column gap-2">
-                <div data-glass-button data-href="{{ route('clientes.create') }}" data-icon="bi-person-plus" data-color="blue">Nuevo cliente</div>
-                <div data-glass-button data-href="{{ route('vales.create') }}" data-icon="bi-ticket" data-color="purple">Nuevo vale</div>
-                <div data-glass-button data-href="{{ route('recibos.create') }}" data-icon="bi-receipt" data-color="green">Generar recibo</div>
-                <div data-glass-button data-href="{{ route('liquidaciones.create') }}" data-icon="bi-calculator" data-color="orange">Registrar liquidación</div>
+                <a href="{{ route('clientes.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-blue"><i class="bi bi-person-plus"></i><span>Nuevo cliente</span></a>
+                <a href="{{ route('vales.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-purple"><i class="bi bi-ticket"></i><span>Nuevo vale</span></a>
+                <a href="{{ route('recibos.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-green"><i class="bi bi-receipt"></i><span>Generar recibo</span></a>
+                <a href="{{ route('liquidaciones.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-orange"><i class="bi bi-calculator"></i><span>Registrar liquidación</span></a>
             </div>
             @if ($ultimaQuincena)
                 <hr>
@@ -173,7 +173,7 @@
 </div>
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
     new Chart(document.getElementById('chartAvance'), {
         type: 'doughnut',
