@@ -29,9 +29,15 @@
             </div>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Folio del vale</label>
-            <input type="text" name="folio_vale" class="form-control" value="{{ old('folio_vale', $vale->folio_vale) }}" required maxlength="50">
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">Folio del vale</label>
+                <input type="text" name="folio_vale" class="form-control" value="{{ old('folio_vale', $vale->folio_vale) }}" required maxlength="50">
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">Fecha de disposición</label>
+                <input type="date" name="fecha_disposicion" class="form-control" value="{{ old('fecha_disposicion', $vale->fecha_disposicion?->format('Y-m-d')) }}">
+            </div>
         </div>
 
         <div class="row">

@@ -1,3 +1,6 @@
+<div class="px-3 pt-3 pb-2 d-flex justify-content-end">
+    @include('partials.por-pagina', ['porPagina' => $porPagina])
+</div>
 <div class="table-responsive">
     <table class="table align-middle mb-0">
         <thead>
@@ -44,4 +47,4 @@
     </table>
 </div>
 
-<div class="mt-3 px-3 pb-2">{{ $clientes->links() }}</div>
+<div class="mt-3 px-3 pb-2 dv-pagination">{{ $clientes->links() }}</div>

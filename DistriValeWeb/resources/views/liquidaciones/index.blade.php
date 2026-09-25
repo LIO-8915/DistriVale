@@ -28,7 +28,10 @@
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="card">
-            <div class="p-3 pb-0"><h6 class="mb-0">Clientes por financiera — Cuota / Pago / Saldo</h6></div>
+            <div class="p-3 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="mb-0">Clientes por financiera — Cuota / Pago / Saldo</h6>
+                @include('partials.por-pagina', ['porPagina' => $porPagina])
+            </div>
             <div class="table-responsive dv-matrix-scroll">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
@@ -47,7 +50,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($matriz as $fila)
+                        @forelse ($matrizPaginada as $fila)
                             <tr>
                                 <td class="fw-semibold dv-matrix-pin">{{ $fila['cliente']->nombre_completo }}</td>
                                 @foreach ($financieras as $f)
@@ -74,7 +77,7 @@
                     @if (count($matriz))
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td class="dv-matrix-pin">TOTALES</td>
+                                <td class="dv-matrix-pin">TOTALES <span class="fw-normal small text-muted">({{ count($matriz) }} clientes)</span></td>
                                 @foreach ($financieras as $f)
                                     <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['cuota'], 0) }}</td>
                                     <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['pago'], 0) }}</td>
@@ -87,6 +90,9 @@
                     @endif
                 </table>
             </div>
+            @if ($matrizPaginada->hasPages())
+                <div class="px-3 py-2 dv-pagination">{{ $matrizPaginada->onEachSide(1)->links() }}</div>
+            @endif
         </div>
     </div>
 
@@ -117,25 +123,27 @@
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead>
-                        <tr><th>Financiera</th><th class="text-end">Cobrar</th><th class="text-end">Poner</th><th class="text-end">Depositar</th><th class="text-end">Ganancias</th></tr>
+                        <tr><th>Financiera</th><th>Corte</th><th>Límite de pago</th><th class="text-end">Cobrar</th><th class="text-end">Poner</th><th class="text-end">Depositar</th><th class="text-end">Ganancias</th></tr>
                     </thead>
                     <tbody>
                         @forelse ($liquidaciones as $l)
                             <tr>
                                 <td>{{ $l->financiera->nombre }}</td>
+                                <td>{{ $l->fecha_corte?->format('d/m/Y') ?? '—' }}</td>
+                                <td>{{ $l->fecha_limite_pago?->format('d/m/Y') ?? '—' }}</td>
                                 <td class="text-end">${{ number_format($l->monto_cobrar, 2) }}</td>
                                 <td class="text-end {{ $l->monto_poner < 0 ? 'text-danger' : '' }}">${{ number_format($l->monto_poner, 2) }}</td>
                                 <td class="text-end">${{ number_format($l->monto_depositar, 2) }}</td>
                                 <td class="text-end">${{ number_format($l->monto_ganancias, 2) }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted py-4">No hay liquidación capturada para esta quincena. <a href="{{ route('liquidaciones.create') }}">Registrar ahora</a>.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">No hay liquidación capturada para esta quincena. <a href="{{ route('liquidaciones.create') }}">Registrar ahora</a>.</td></tr>
                         @endforelse
                     </tbody>
                     @if ($liquidaciones->isNotEmpty())
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td>TOTALES</td>
+                                <td colspan="3">TOTALES</td>
                                 <td class="text-end">${{ number_format($totalesCaptura['cobrar'], 2) }}</td>
                                 <td class="text-end">${{ number_format($totalesCaptura['poner'], 2) }}</td>
                                 <td class="text-end">${{ number_format($totalesCaptura['depositar'], 2) }}</td>

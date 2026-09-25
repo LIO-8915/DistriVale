@@ -5,17 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\DetalleReciboVale;
 use App\Models\ReciboConsolidado;
+use App\Support\Mora;
+use App\Support\PorPagina;
 use App\Support\Quincena;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReciboController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $recibos = ReciboConsolidado::with('cliente')->latest('fecha_corte')->paginate(15);
+        $porPagina = PorPagina::desde($request);
+        $recibos = ReciboConsolidado::with('cliente')->latest('fecha_corte')
+            ->paginate(PorPagina::tamano($porPagina))->withQueryString();
 
-        return view('recibos.index', compact('recibos'));
+        return view('recibos.index', compact('recibos', 'porPagina'));
     }
 
     public function create()
@@ -105,6 +109,10 @@ class ReciboController extends Controller
                 $detalle->vale->registrarPago((float) $detalle->monto_pago);
             }
         });
+
+        // Un vale en mora que se acaba de pagar vuelve a ACTIVO en el acto,
+        // sin esperar a la revisión diaria.
+        Mora::actualizar();
 
         return redirect()->route('recibos.show', $recibo)->with('success', 'Pago aplicado a los vales del cliente.');
     }

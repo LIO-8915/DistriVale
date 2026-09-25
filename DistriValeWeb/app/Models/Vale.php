@@ -18,6 +18,7 @@ class Vale extends Model
         'id_cliente',
         'id_financiera',
         'folio_vale',
+        'fecha_disposicion',
         'monto_original',
         'cuota_quincenal',
         'total_quincenas',
@@ -30,6 +31,8 @@ class Vale extends Model
         'monto_original' => 'decimal:2',
         'cuota_quincenal' => 'decimal:2',
         'saldo_pendiente' => 'decimal:2',
+        'fecha_disposicion' => 'date',
+        'fecha_ultimo_pago' => 'datetime',
     ];
 
     public function cliente(): BelongsTo
@@ -52,11 +55,23 @@ class Vale extends Model
         return $this->quincena_actual.' de '.$this->total_quincenas;
     }
 
+    /**
+     * Vale que en este corte paga su última cuota: sigue ACTIVO (esa cuota
+     * todavía se cobra) y pasa a LIQUIDADO al confirmarse el pago.
+     */
+    public function esUltimoPago(): bool
+    {
+        return $this->estado === 'ACTIVO'
+            && $this->quincena_actual >= $this->total_quincenas
+            && (float) $this->saldo_pendiente <= (float) $this->cuota_quincenal + 0.01;
+    }
+
     public function registrarPago(float $monto): void
     {
         $this->saldo_pendiente = max(0, (float) $this->saldo_pendiente - $monto);
         $this->quincena_actual = min($this->total_quincenas, $this->quincena_actual + 1);
         $this->estado = $this->saldo_pendiente <= 0 ? 'LIQUIDADO' : $this->estado;
+        $this->fecha_ultimo_pago = now();
         $this->save();
     }
 }

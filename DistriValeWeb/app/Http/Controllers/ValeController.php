@@ -5,23 +5,26 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Models\Financiera;
 use App\Models\Vale;
+use App\Support\PorPagina;
 use Illuminate\Http\Request;
 
 class ValeController extends Controller
 {
     public function index(Request $request)
     {
+        $porPagina = PorPagina::desde($request);
+
         $vales = Vale::query()
             ->with(['cliente', 'financiera'])
             ->when($request->filled('id_financiera'), fn ($q) => $q->where('id_financiera', $request->id_financiera))
             ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->estado))
             ->orderByDesc('id_vale')
-            ->paginate(15)
+            ->paginate(PorPagina::tamano($porPagina))
             ->withQueryString();
 
         $financieras = Financiera::orderBy('nombre')->get();
 
-        return view('vales.index', compact('vales', 'financieras'));
+        return view('vales.index', compact('vales', 'financieras', 'porPagina'));
     }
 
     public function create()
@@ -73,6 +76,7 @@ class ValeController extends Controller
             'id_cliente' => 'required|exists:clientes,id_cliente',
             'id_financiera' => 'required|exists:cat_financieras,id_financiera',
             'folio_vale' => 'required|string|max:50',
+            'fecha_disposicion' => 'nullable|date',
             'monto_original' => 'required|numeric|min:0',
             'cuota_quincenal' => 'required|numeric|min:0',
             'total_quincenas' => 'required|integer|min:1',

@@ -98,13 +98,39 @@ fn handle_download(_webview: tauri::Webview, event: DownloadEvent) -> bool {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "descarga".to_string());
 
+            // Sin filtro, el diálogo de Windows guarda el nombre tal cual lo
+            // escribe la usuaria: si lo cambia, el PDF queda sin extensión y
+            // el Explorador lo muestra como "Archivo" en vez de documento PDF.
+            let extension = std::path::Path::new(&suggested_name)
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase());
+
             let mut dialog = rfd::FileDialog::new().set_file_name(&suggested_name);
+            if let Some(ext) = &extension {
+                let descripcion = match ext.as_str() {
+                    "pdf" => "Documento PDF".to_string(),
+                    otra => format!("Archivo {}", otra.to_uppercase()),
+                };
+                dialog = dialog.add_filter(descripcion, &[ext.as_str()]);
+            }
             if let Some(dir) = destination.parent() {
                 dialog = dialog.set_directory(dir);
             }
 
             match dialog.save_file() {
-                Some(path) => {
+                Some(mut path) => {
+                    if let Some(ext) = &extension {
+                        let ya_la_tiene = path
+                            .extension()
+                            .is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case(ext));
+                        if !ya_la_tiene {
+                            // Se agrega en vez de reemplazar: un nombre como
+                            // "reporte 15.09" no debe perder el ".09".
+                            let mut nombre = path.file_name().unwrap_or_default().to_os_string();
+                            nombre.push(format!(".{ext}"));
+                            path.set_file_name(nombre);
+                        }
+                    }
                     *destination = path;
                     true
                 }

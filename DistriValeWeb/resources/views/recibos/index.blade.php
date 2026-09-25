@@ -7,6 +7,9 @@
 
 @section('content')
 <div class="card">
+    <div class="px-3 pt-3 pb-2 d-flex justify-content-end">
+        @include('partials.por-pagina', ['porPagina' => $porPagina])
+    </div>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
             <thead>
@@ -31,5 +34,5 @@
     </div>
 </div>
 
-<div class="mt-3">{{ $recibos->links() }}</div>
+<div class="mt-3 dv-pagination">{{ $recibos->links() }}</div>
 @endsection

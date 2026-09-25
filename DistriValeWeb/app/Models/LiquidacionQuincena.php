@@ -16,6 +16,9 @@ class LiquidacionQuincena extends Model
     protected $fillable = [
         'periodo_quincena',
         'id_financiera',
+        'fecha_corte',
+        'fecha_limite_pago',
+        'fecha_deposito',
         'monto_cobrar',
         'monto_poner',
         'monto_depositar',
@@ -23,6 +26,9 @@ class LiquidacionQuincena extends Model
     ];
 
     protected $casts = [
+        'fecha_corte' => 'date',
+        'fecha_limite_pago' => 'date',
+        'fecha_deposito' => 'date',
         'monto_cobrar' => 'decimal:2',
         'monto_poner' => 'decimal:2',
         'monto_depositar' => 'decimal:2',

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Vale;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +22,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Laravel pagina con plantillas de Tailwind por defecto; esta app solo
+        // carga Bootstrap, así que sin esto las flechas SVG de ->links() se
+        // dibujan a tamaño completo y tapan las tablas.
+        Paginator::useBootstrapFive();
+
+        // Sin subsetting, dompdf incrusta DejaVu Sans completa (~850 KB por
+        // PDF). El servidor integrado de PHP en Windows (php artisan serve,
+        // el que arranca Tauri) a veces trunca respuestas de ese tamaño y el
+        // PDF llega corrupto; con solo los glifos usados pesa unas decenas de KB.
+        config(['dompdf.options.enable_font_subsetting' => true]);
+
         // The notification bell lives in the shared layout, so every page
         // needs the auto-calculated overdue-payment list for its modal.
         View::composer('layouts.app', function ($view) {

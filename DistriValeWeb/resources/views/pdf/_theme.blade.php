@@ -40,14 +40,32 @@
     table.pdf-table td { padding: 7px 10px; border-bottom: 1px solid #e3e8f0; font-size: 10px; color: #101828; }
     table.pdf-table tr:last-child td { border-bottom: none; }
     table.pdf-table tr.pdf-group-row td {
-        background: rgba(79, 124, 255, .08); color: #3b5fd9; font-weight: 700;
+        background: rgba(79, 124, 255, .08); color: #3b5fd9; font-weight: bold;
         text-transform: uppercase; font-size: 9px; letter-spacing: .03em;
     }
-    table.pdf-table tfoot td { font-weight: 700; background: rgba(79, 124, 255, .08); border-top: 1.4px solid #4f7cff; }
+    table.pdf-table tfoot td { font-weight: bold; background: rgba(79, 124, 255, .08); border-top: 1.4px solid #4f7cff; }
+    /* Reportes seccionados por financiera: encabezado (.pdf-group-row), sus
+       renglones y su subtotal (.pdf-subtotal-row) justo debajo; el total
+       general (.pdf-total-row) va al final con línea gruesa y fondo más
+       marcado para que se lea como el renglón final.
+       Solo pesos normal/bold: DejaVu Sans (la fuente de dompdf) no trae
+       600/800 y con esos pesos dompdf cae a una serif. */
+    table.pdf-table tr.pdf-subtotal-row td {
+        border-top: 1px solid #b9c8f7; border-bottom: 1.4px solid #4f7cff;
+        background: rgba(79, 124, 255, .05); font-weight: bold; color: #3b5fd9;
+    }
+    table.pdf-table tbody:last-of-type tr.pdf-subtotal-row td { border-bottom: none; }
+    table.pdf-table tfoot tr.pdf-total-row td { border-top: 1.4px solid #4f7cff; background: rgba(79, 124, 255, .16); font-weight: bold; font-size: 10.5px; }
+    table.pdf-table .pdf-num { text-align: right; }
+    table.pdf-table td.pdf-num { white-space: nowrap; }
+    /* Tablas con muchas columnas (reporte de cliente con fecha): más
+       compactas para que la última columna no se salga de la tarjeta. */
+    table.pdf-table.pdf-compact th, table.pdf-table.pdf-compact td { padding: 6px 6px; }
+    table.pdf-table.pdf-compact td { font-size: 9.5px; }
 
     .pdf-footer-note {
         background: #4f7cff; color: #fff; border-radius: 14px;
-        padding: 11px 20px; text-align: center; font-size: 10px; font-weight: 600;
+        padding: 11px 20px; text-align: center; font-size: 10px; font-weight: bold;
     }
 
     .pdf-muted { color: #667085; }
@@ -61,4 +79,5 @@
     .pdf-badge-ACTIVO { background: rgba(43, 196, 138, .16); color: #1a9c6c; }
     .pdf-badge-EN_MORA { background: rgba(255, 159, 67, .18); color: #c97316; }
     .pdf-badge-LIQUIDADO { background: rgba(120, 130, 145, .16); color: #6b7688; }
+    .pdf-badge-ULTIMO { background: rgba(79, 124, 255, .14); color: #3b5fd9; }
 </style>

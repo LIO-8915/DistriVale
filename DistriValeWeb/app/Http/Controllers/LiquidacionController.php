@@ -6,9 +6,11 @@ use App\Models\Cliente;
 use App\Models\DetalleReciboVale;
 use App\Models\Financiera;
 use App\Models\LiquidacionQuincena;
+use App\Support\PorPagina;
 use App\Support\Quincena;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class LiquidacionController extends Controller
 {
@@ -28,6 +30,18 @@ class LiquidacionController extends Controller
 
         [$financieras, $matriz, $totales] = $this->construirMatriz($periodo);
 
+        // La matriz se pagina en pantalla (10 por defecto, sin recordar la
+        // elección entre visitas), pero $totales se calcula antes sobre todos
+        // los clientes, así que la fila TOTALES no depende de la página.
+        $porPagina = PorPagina::desde($request);
+        $tamano = $porPagina ?: max(count($matriz), 1);
+        $pagina = LengthAwarePaginator::resolveCurrentPage();
+        $matrizPaginada = new LengthAwarePaginator(
+            array_slice($matriz, ($pagina - 1) * $tamano, $tamano),
+            count($matriz), $tamano, $pagina,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         $liquidaciones = LiquidacionQuincena::with('financiera')->where('periodo_quincena', $periodo)->get();
         $totalesCaptura = [
             'cobrar' => $liquidaciones->sum('monto_cobrar'),
@@ -40,7 +54,7 @@ class LiquidacionController extends Controller
             ->orderBy('nombre')->get();
 
         return view('liquidaciones.index', compact(
-            'periodos', 'periodo', 'financieras', 'matriz', 'totales',
+            'periodos', 'periodo', 'financieras', 'matriz', 'totales', 'matrizPaginada', 'porPagina',
             'liquidaciones', 'totalesCaptura', 'saldoPorFinanciera'
         ));
     }
@@ -82,10 +96,16 @@ class LiquidacionController extends Controller
 
     public function pdf(Request $request)
     {
+        // dompdf arma la matriz completa en memoria: con un corte real (~200
+        // clientes × 5 financieras) pasa de los 128 MB por defecto de PHP.
+        ini_set('memory_limit', '512M');
+
         $periodo = $request->get('periodo') ?: Quincena::actual()['periodo_quincena'];
         [$financieras, $matriz, $totales] = $this->construirMatriz($periodo);
+        $liquidaciones = LiquidacionQuincena::with('financiera')->where('periodo_quincena', $periodo)
+            ->orderBy('fecha_corte')->get();
 
-        $pdf = Pdf::loadView('liquidaciones.pdf', compact('periodo', 'financieras', 'matriz', 'totales'))
+        $pdf = Pdf::loadView('liquidaciones.pdf', compact('periodo', 'financieras', 'matriz', 'totales', 'liquidaciones'))
             ->setPaper('a4', 'landscape');
 
         return $pdf->download('liquidacion-'.str($periodo)->slug().'.pdf');
@@ -127,31 +147,32 @@ class LiquidacionController extends Controller
             $fila = ['cliente' => $cliente, 'financieras' => [], 'total_cuota' => 0, 'total_pago' => 0, 'total_saldo' => 0, 'oportuno' => true];
 
             foreach ($financieras as $f) {
-                $vale = $cliente->vales->firstWhere('id_financiera', $f->id_financiera);
+                // Un cliente suele tener varios vales en la misma financiera
+                // (en los estados de cuenta reales hay hasta 7), así que la
+                // celda suma todos en vez de tomar solo el primero.
+                $vales = $cliente->vales->where('id_financiera', $f->id_financiera);
 
-                if (! $vale) {
+                if ($vales->isEmpty()) {
                     $fila['financieras'][$f->id_financiera] = null;
                     continue;
                 }
 
-                $pago = (float) ($pagosPorVale[$vale->id_vale] ?? 0);
+                $cuota = (float) $vales->sum('cuota_quincenal');
+                $pago = (float) $vales->sum(fn ($v) => $pagosPorVale[$v->id_vale] ?? 0);
+                $saldo = (float) $vales->sum('saldo_pendiente');
 
-                $fila['financieras'][$f->id_financiera] = [
-                    'cuota' => (float) $vale->cuota_quincenal,
-                    'pago' => $pago,
-                    'saldo' => (float) $vale->saldo_pendiente,
-                ];
+                $fila['financieras'][$f->id_financiera] = ['cuota' => $cuota, 'pago' => $pago, 'saldo' => $saldo];
 
-                $fila['total_cuota'] += (float) $vale->cuota_quincenal;
+                $fila['total_cuota'] += $cuota;
                 $fila['total_pago'] += $pago;
-                $fila['total_saldo'] += (float) $vale->saldo_pendiente;
-                if ($vale->estado === 'EN_MORA') {
+                $fila['total_saldo'] += $saldo;
+                if ($vales->contains('estado', 'EN_MORA')) {
                     $fila['oportuno'] = false;
                 }
 
-                $totales['por_financiera'][$f->id_financiera]['cuota'] += (float) $vale->cuota_quincenal;
+                $totales['por_financiera'][$f->id_financiera]['cuota'] += $cuota;
                 $totales['por_financiera'][$f->id_financiera]['pago'] += $pago;
-                $totales['por_financiera'][$f->id_financiera]['saldo'] += (float) $vale->saldo_pendiente;
+                $totales['por_financiera'][$f->id_financiera]['saldo'] += $saldo;
             }
 
             $totales['cuota'] += $fila['total_cuota'];

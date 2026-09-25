@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\Financiera;
 use App\Models\NotaCliente;
 use App\Models\Vale;
+use App\Support\PorPagina;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,7 @@ class ClienteController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q'));
+        $porPagina = PorPagina::desde($request);
 
         $clientes = Cliente::query()
             ->with('vales.financiera')
@@ -30,7 +32,7 @@ class ClienteController extends Controller
             ))
             ->when($request->filled('estado'), fn ($query) => $query->where('activo', $request->estado === 'activo'))
             ->orderBy('nombre_completo')
-            ->paginate(15)
+            ->paginate(PorPagina::tamano($porPagina))
             ->withQueryString();
 
         $totalClientes = Cliente::count();
@@ -44,10 +46,10 @@ class ClienteController extends Controller
         $financieras = Financiera::orderBy('nombre')->get();
 
         if ($request->ajax() || $request->boolean('partial')) {
-            return view('clientes._table', compact('clientes'));
+            return view('clientes._table', compact('clientes', 'porPagina'));
         }
 
-        return view('clientes.index', compact('clientes', 'totalClientes', 'porFinanciera', 'financieras'));
+        return view('clientes.index', compact('clientes', 'totalClientes', 'porFinanciera', 'financieras', 'porPagina'));
     }
 
     public function create()
@@ -111,7 +113,7 @@ class ClienteController extends Controller
 
     public function pdf(Cliente $cliente)
     {
-        $cliente->load(['vales' => fn ($q) => $q->whereIn('estado', ['ACTIVO', 'EN_MORA'])->with('financiera')]);
+        $cliente->load(['vales' => fn ($q) => $q->whereIn('estado', ['ACTIVO', 'EN_MORA'])->with('financiera')->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
 
         $pdf = Pdf::loadView('clientes.pdf', compact('cliente'));
 

@@ -74,6 +74,45 @@
         </table>
     </div>
 
+    @if ($liquidaciones->isNotEmpty())
+        <div class="pdf-table-card">
+            <table class="pdf-table">
+                <thead>
+                    <tr>
+                        <th>Financiera</th>
+                        <th>Corte</th>
+                        <th>Límite de pago</th>
+                        <th>Depositar a más tardar</th>
+                        <th class="pdf-num">Cobrar</th>
+                        <th class="pdf-num">Depositar</th>
+                        <th class="pdf-num">Ganancias</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($liquidaciones as $l)
+                        <tr>
+                            <td>{{ $l->financiera->nombre }}</td>
+                            <td>{{ $l->fecha_corte?->format('d/m/Y') ?? '—' }}</td>
+                            <td>{{ $l->fecha_limite_pago?->format('d/m/Y') ?? '—' }}</td>
+                            <td>{{ $l->fecha_deposito?->format('d/m/Y') ?? '—' }}</td>
+                            <td class="pdf-num">${{ number_format($l->monto_cobrar, 2) }}</td>
+                            <td class="pdf-num">${{ number_format($l->monto_depositar, 2) }}</td>
+                            <td class="pdf-num">${{ number_format($l->monto_ganancias, 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr class="pdf-total-row">
+                        <td colspan="4">TOTAL &middot; {{ $liquidaciones->count() }} financieras</td>
+                        <td class="pdf-num">${{ number_format($liquidaciones->sum('monto_cobrar'), 2) }}</td>
+                        <td class="pdf-num">${{ number_format($liquidaciones->sum('monto_depositar'), 2) }}</td>
+                        <td class="pdf-num">${{ number_format($liquidaciones->sum('monto_ganancias'), 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    @endif
+
     <div class="pdf-footer-note">
         DistriVale &middot; Reporte de liquidación quincenal
     </div>

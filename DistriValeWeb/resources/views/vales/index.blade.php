@@ -28,16 +28,23 @@
                     <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
                 </select>
             </div>
+            {{-- Cambiar un filtro conserva las filas por página elegidas. --}}
+            @if ($porPagina !== \App\Support\PorPagina::DEFECTO)
+                <input type="hidden" name="por_pagina" value="{{ $porPagina }}">
+            @endif
         </form>
     </div>
 </div>
 
 <div class="card">
+    <div class="px-3 pt-3 pb-2 d-flex justify-content-end">
+        @include('partials.por-pagina', ['porPagina' => $porPagina])
+    </div>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Cliente</th><th>Financiera</th><th>Folio</th><th>Monto</th>
+                    <th>Cliente</th><th>Financiera</th><th>Folio</th><th>Fecha</th><th>Monto</th>
                     <th>Cuota</th><th># Pago</th><th>Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
                 </tr>
             </thead>
@@ -47,6 +54,7 @@
                         <td><a href="{{ route('clientes.show', $vale->cliente) }}" class="text-decoration-none">{{ $vale->cliente->nombre_completo }}</a></td>
                         <td>{{ $vale->financiera->nombre }}</td>
                         <td>{{ $vale->folio_vale }}</td>
+                        <td class="text-nowrap">{{ $vale->fecha_disposicion?->format('d/m/Y') ?? '—' }}</td>
                         <td>${{ number_format($vale->monto_original, 2) }}</td>
                         <td>${{ number_format($vale->cuota_quincenal, 2) }}</td>
                         <td>{{ $vale->numeroPagoTexto() }}</td>
@@ -61,12 +69,12 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="9" class="text-center text-muted py-4">No hay vales registrados.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-4">No hay vales registrados.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 </div>
 
-<div class="mt-3">{{ $vales->links() }}</div>
+<div class="mt-3 dv-pagination">{{ $vales->links() }}</div>
 @endsection

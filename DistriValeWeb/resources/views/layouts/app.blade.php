@@ -182,17 +182,20 @@
         }
         .dv-sidebar a.active i { opacity: 1; }
 
-        /* Topbar */
+        /* Topbar flotante: misma superficie de vidrio que las .card (borde,
+           radio, sombra), separada de los bordes de la pantalla. El `top`
+           deja un hueco al quedar pegada al hacer scroll, así sigue viéndose
+           como una tarjeta flotando sobre el contenido. */
         .dv-topbar {
-            position: sticky; top: 0; z-index: 5;
+            position: sticky; top: .85rem; z-index: 5;
             display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem;
-            padding: 1.15rem 1.5rem; margin: -1.5rem -1.75rem 2rem;
-            background: linear-gradient(120deg, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, .28) 100%);
+            padding: 1rem 1.4rem; margin: 0 0 1.75rem;
+            border: 1px solid rgba(255, 255, 255, .5);
+            border-radius: var(--dv-radius);
+            background: linear-gradient(135deg, rgba(255, 255, 255, .7) 0%, rgba(255, 255, 255, .34) 55%, rgba(255, 255, 255, .5) 100%);
             -webkit-backdrop-filter: blur(30px) saturate(220%);
             backdrop-filter: blur(30px) saturate(220%);
-            box-shadow: 0 1px 0 rgba(255, 255, 255, .8) inset, 0 8px 24px rgba(30, 41, 59, .05);
-            border-bottom: 1px solid transparent;
-            border-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(150,195,255,.6) 20%, rgba(255,255,255,.9) 50%, rgba(255,175,215,.55) 80%, rgba(255,255,255,0) 100%) 1;
+            box-shadow: 0 14px 34px rgba(30, 41, 59, .12), 0 1px 0 rgba(255, 255, 255, .7) inset;
         }
         /* Fluid type: scales smoothly with the actual window width instead of
            jumping between fixed sizes at a couple of breakpoints — reads
@@ -416,6 +419,24 @@
            gradual scaling; these breakpoints cover structural changes the
            layout needs at specific widths. */
 
+        /* Paginación (plantilla bootstrap-5 de Laravel): mismo vidrio que las
+           .card. Fuera de una tarjeta queda sobre el fondo oscuro, así que el
+           texto "Mostrando X a Y" (un div .small.text-muted) va en su propia píldora para que se lea. */
+        .dv-pagination .pagination { margin: 0; gap: .3rem; flex-wrap: wrap; }
+        .dv-pagination .page-link {
+            border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .55);
+            background: rgba(255, 255, 255, .8); color: #000; min-width: 2.2rem; text-align: center;
+            -webkit-backdrop-filter: blur(14px) saturate(200%); backdrop-filter: blur(14px) saturate(200%);
+        }
+        .dv-pagination .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; }
+        .dv-pagination .page-item.active .page-link { background: var(--dv-accent); border-color: var(--dv-accent); color: #fff; }
+        .dv-pagination .page-item.disabled .page-link { background: rgba(255, 255, 255, .55); color: rgba(0, 0, 0, .45); }
+        .dv-pagination .small.text-muted {
+            display: inline-block; margin: 0; padding: .35rem .85rem; border-radius: 999px;
+            background: rgba(255, 255, 255, .8); color: #000 !important;
+            -webkit-backdrop-filter: blur(14px) saturate(200%); backdrop-filter: blur(14px) saturate(200%);
+        }
+
         /* Icon-rail sidebar: below 1200px there isn't room to spare 232px of
            permanent label text. Icons stay, labels collapse (still reachable
            via each link's native title="" tooltip on hover). */
@@ -433,7 +454,7 @@
            drop to just the avatar. Topbar chrome tightens up too. */
         @media (max-width: 860px) {
             .dv-user-text { display: none; }
-            .dv-topbar { padding: 1rem 1.1rem; margin: -1.5rem -1.1rem 1.5rem; }
+            .dv-topbar { padding: .85rem 1rem; margin-bottom: 1.25rem; top: .6rem; }
         }
 
         @media (max-width: 640px) {

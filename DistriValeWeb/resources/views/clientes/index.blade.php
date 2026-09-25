@@ -75,6 +75,8 @@
     var wrap = document.getElementById('clientesTableWrap');
     var baseUrl = '{{ route('clientes.index') }}';
     var timer = null;
+    // Filas por página elegidas en esta visita; buscar o filtrar las conserva.
+    var porPagina = '{{ $porPagina }}';
 
     // Skeleton rows (Bootstrap Placeholder), only shown if the fetch takes
     // a moment — mirrors the real table's columns so the swap-in doesn't
@@ -101,6 +103,7 @@
         if (input.value.trim() !== '') params.set('q', input.value.trim());
         if (selFinanciera.value) params.set('id_financiera', selFinanciera.value);
         if (selEstado.value) params.set('estado', selEstado.value);
+        if (porPagina !== '{{ \App\Support\PorPagina::DEFECTO }}') params.set('por_pagina', porPagina);
         if (page) params.set('page', page);
 
         var skeletonTimer = setTimeout(function () { wrap.innerHTML = skeletonHtml(); }, 200);
@@ -122,6 +125,13 @@
     selEstado.addEventListener('change', function () { reload(); });
 
     wrap.addEventListener('click', function (e) {
+        var opcion = e.target.closest('.dv-por-pagina a');
+        if (opcion) {
+            e.preventDefault();
+            porPagina = opcion.dataset.valor;
+            reload();
+            return;
+        }
         var link = e.target.closest('.pagination a');
         if (link) {
             e.preventDefault();

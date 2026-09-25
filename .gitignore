@@ -28,3 +28,7 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+CONTEXTO_SESION.md
+RELACION_BD_FINANCIERAS.md
+DistriValeWeb/database/importaciones/
