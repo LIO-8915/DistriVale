@@ -12,3 +12,7 @@ reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
+# Native "Save As" dialog for the download-location prompt in main.rs's
+# on_download handler — lighter than pulling in the full tauri-plugin-dialog
+# (which exists for JS-invokable commands; we only need it from Rust).
+rfd = "0.15"

@@ -15,7 +15,7 @@
 
 @section('content')
 <div class="row g-3 mb-3">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-blue"><i class="bi bi-people-fill"></i></span>
@@ -26,7 +26,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-purple"><i class="bi bi-bank2"></i></span>
@@ -37,7 +37,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-orange"><i class="bi bi-exclamation-triangle-fill"></i></span>
@@ -48,7 +48,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-green"><i class="bi bi-cash-stack"></i></span>
@@ -173,7 +173,6 @@
 </div>
 
 @push('scripts')
-<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
     new Chart(document.getElementById('chartAvance'), {
         type: 'doughnut',

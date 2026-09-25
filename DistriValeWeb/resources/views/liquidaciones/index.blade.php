@@ -29,11 +29,11 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="p-3 pb-0"><h6 class="mb-0">Clientes por financiera — Cuota / Pago / Saldo</h6></div>
-            <div class="table-responsive">
+            <div class="table-responsive dv-matrix-scroll">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                         <tr>
-                            <th rowspan="2" class="align-middle">Cliente</th>
+                            <th rowspan="2" class="align-middle dv-matrix-pin">Cliente</th>
                             @foreach ($financieras as $f)
                                 <th colspan="3" class="text-center">{{ $f->nombre }}</th>
                             @endforeach
@@ -49,7 +49,7 @@
                     <tbody>
                         @forelse ($matriz as $fila)
                             <tr>
-                                <td class="fw-semibold">{{ $fila['cliente']->nombre_completo }}</td>
+                                <td class="fw-semibold dv-matrix-pin">{{ $fila['cliente']->nombre_completo }}</td>
                                 @foreach ($financieras as $f)
                                     @php $d = $fila['financieras'][$f->id_financiera]; @endphp
                                     @if ($d)
@@ -74,7 +74,7 @@
                     @if (count($matriz))
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td>TOTALES</td>
+                                <td class="dv-matrix-pin">TOTALES</td>
                                 @foreach ($financieras as $f)
                                     <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['cuota'], 0) }}</td>
                                     <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['pago'], 0) }}</td>
@@ -150,7 +150,6 @@
 </div>
 
 @push('scripts')
-<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
     new Chart(document.getElementById('chartSaldoFinanciera'), {
         type: 'doughnut',

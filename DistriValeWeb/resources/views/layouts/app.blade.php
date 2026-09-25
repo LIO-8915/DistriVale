@@ -17,26 +17,87 @@
            reflow when Inter swaps in. See the script at the end of <body>. */
         body > *:not(#dv-preloader) { visibility: hidden; }
         html.dv-ready body > *:not(#dv-preloader) { visibility: visible; }
+        /* Splash: Disney+/Netflix-style title card — a dark vignette tinted
+           to the brand's own blue (not the app's photo background), and a
+           mark with no filled plate behind it (transparent, just the glyph)
+           that fades/scales in once and settles into a slow ambient glow
+           pulse. The mark is inline SVG (not the bi-* icon font) so it
+           paints on first frame regardless of whether bootstrap-icons has
+           loaded yet — this screen's whole job is to cover the page while
+           exactly those assets are still loading. */
+        /* A CSS radial-gradient() here (even with fully opaque stops) shows a
+           visible vertical seam in WebView2/Chromium — a real rasterization
+           artifact of that gradient type, confirmed in the actual packaged
+           app, not a test-only fluke. Built the same soft vignette a
+           different way instead: a solid background plus a large, heavily
+           blurred circle (filter: blur(), not a gradient) as the glow —
+           a rendering path that doesn't hit that bug. */
         #dv-preloader {
             position: fixed; inset: 0; z-index: 9999;
-            background: url('{{ asset('images/fondo-app.png') }}') center / cover fixed, #0c4660;
+            background: #05070c; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
         }
+        #dv-preloader::before {
+            content: ""; position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+            width: min(70vmax, 900px); height: min(70vmax, 900px);
+            background: #2e4d8f; border-radius: 50%; filter: blur(140px); opacity: .65;
+        }
         html.dv-ready #dv-preloader { display: none; }
-        #dv-preloader .dv-loading { text-align: center; color: #fff; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
-        #dv-preloader .brand {
-            width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 1.1rem;
-            background: linear-gradient(135deg, #4f7cff, #7aa2ff);
-            box-shadow: 0 8px 24px rgba(79, 124, 255, .45);
+        #dv-preloader .dv-splash { text-align: center; position: relative; z-index: 1; }
+        #dv-preloader .dv-splash-icon {
+            display: block; margin: 0 auto 1.15rem;
+            filter: drop-shadow(0 0 16px rgba(79, 124, 255, .45));
+            animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both,
+                       dv-splash-pulse 2.6s ease-in-out .7s infinite;
         }
-        #dv-preloader h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .35rem; }
-        #dv-preloader p { font-size: .85rem; color: #aab4c6; margin: 0; }
-        #dv-preloader .dv-spinner {
-            width: 26px; height: 26px; margin: 1.25rem auto 0;
-            border: 3px solid rgba(255, 255, 255, .2); border-top-color: #7aa2ff;
-            border-radius: 50%; animation: dv-spin .8s linear infinite;
+        #dv-preloader .dv-splash-text {
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #fff;
+            font-weight: 600; font-size: 1rem; letter-spacing: .16em; text-transform: uppercase; opacity: 0;
+            animation: dv-splash-text-in .6s ease-out .4s forwards;
         }
-        @keyframes dv-spin { to { transform: rotate(360deg); } }
+        @keyframes dv-splash-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
+        @keyframes dv-splash-pulse {
+            0%, 100% { filter: drop-shadow(0 0 14px rgba(79, 124, 255, .42)); }
+            50% { filter: drop-shadow(0 0 28px rgba(122, 162, 255, .75)); }
+        }
+        @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
+        @media (prefers-reduced-motion: reduce) {
+            #dv-preloader .dv-splash-icon { animation: dv-splash-in .3s ease both; }
+        }
+
+        /* Slim top progress bar shown while dv-nav.js fetches a screen. */
+        #dv-progress {
+            position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 10000;
+            background: linear-gradient(90deg, #4f7cff, #7aa2ff); opacity: 0;
+            transition: width .25s ease, opacity .2s ease;
+        }
+        html.dv-nav-loading #dv-progress { width: 70%; opacity: 1; }
+
+        #dv-topbar-actions:empty, .dv-topbar .dv-subtitle:empty { display: none; }
+        .dv-topbar-heading { min-width: 0; flex: 1 1 240px; }
+
+        /* Sidebar tooltips (Bootstrap Tooltip, Popper-positioned — see
+           dv-ui.js) only earn their keep when the sidebar is the icon-only
+           rail (<1200px, see below) — with labels visible there's nothing
+           the tooltip adds. Bootstrap mounts .tooltip on <body>, not inside
+           the trigger, so this is the reliable way to gate it by viewport. */
+        @media (min-width: 1200px) { .tooltip { display: none !important; } }
+        .tooltip .tooltip-inner {
+            background: var(--dv-navy); font-size: .8rem; padding: .4rem .7rem; border-radius: 8px;
+        }
+        .tooltip .tooltip-arrow::before { border-right-color: var(--dv-navy) !important; }
+
+        /* Slow in-place navigation (dv-nav.js): only kicks in past ~250ms so
+           a normal click never shows it — dims the current screen (kept in
+           place, not swapped to a skeleton) and centers a Bootstrap spinner
+           over it. */
+        .dv-nav-slow-spinner {
+            position: fixed; inset: 0; margin-left: var(--dv-sidebar-w);
+            display: none; align-items: center; justify-content: center; z-index: 20;
+            pointer-events: none;
+        }
+        html.dv-nav-slow #dv-view { opacity: .45; transition: opacity .15s ease; }
+        html.dv-nav-slow .dv-nav-slow-spinner { display: flex; }
     </style>
     <style>
         :root {
@@ -48,6 +109,11 @@
             --dv-glass-bg: rgba(255, 255, 255, .40);
             --dv-glass-border: rgba(255, 255, 255, .55);
             --dv-radius: 18px;
+            /* Overshoot easing for the "liquid glass" press feedback below —
+               settles past its target and eases back, reading as a soft
+               bounce instead of a linear snap, in both directions (press
+               and release use the same curve). */
+            --dv-spring: cubic-bezier(.34, 1.56, .64, 1);
         }
 
         * { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }
@@ -92,10 +158,19 @@
         .dv-sidebar a {
             color: #aab4c6; display: flex; align-items: center; gap: .75rem;
             padding: .8rem .9rem; text-decoration: none; font-size: .96rem; font-weight: 500;
-            border-radius: .75rem; margin-bottom: 4px; transition: background .15s ease, color .15s ease;
+            border-radius: .75rem; margin-bottom: 4px;
+            transition: background .15s ease, color .15s ease,
+                        transform .32s var(--dv-spring), border-radius .32s var(--dv-spring), filter .15s ease;
         }
         .dv-sidebar a i { font-size: 1.15rem; width: 20px; text-align: center; opacity: .85; }
         .dv-sidebar a:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+        /* Liquid Glass press feedback: the pill compresses and rounds off
+           further while held, its blur/darken deepen a touch (keeps the icon
+           legible against whatever's behind it), then springs back via the
+           overshoot easing above on release. */
+        .dv-sidebar a:active {
+            transform: scale(.95); border-radius: 1.1rem; filter: brightness(.9);
+        }
         /* Active nav pill: plain CSS gradient + backdrop-filter instead of a
            liquid-glass-js WebGL Container wrapping the <a> — same look, no
            JS DOM replacement after DOMContentLoaded (which used to make the
@@ -110,7 +185,7 @@
         /* Topbar */
         .dv-topbar {
             position: sticky; top: 0; z-index: 5;
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem;
             padding: 1.15rem 1.5rem; margin: -1.5rem -1.75rem 2rem;
             background: linear-gradient(120deg, rgba(255, 255, 255, .5) 0%, rgba(255, 255, 255, .28) 100%);
             -webkit-backdrop-filter: blur(30px) saturate(220%);
@@ -119,8 +194,15 @@
             border-bottom: 1px solid transparent;
             border-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(150,195,255,.6) 20%, rgba(255,255,255,.9) 50%, rgba(255,175,215,.55) 80%, rgba(255,255,255,0) 100%) 1;
         }
-        .dv-topbar .dv-title { font-weight: 700; font-size: 1.6rem; letter-spacing: -.01em; margin: 0; color: #000; }
-        .dv-topbar .dv-subtitle { font-size: .95rem; color: #000; margin: .2rem 0 0; }
+        /* Fluid type: scales smoothly with the actual window width instead of
+           jumping between fixed sizes at a couple of breakpoints — reads
+           comfortably whether the Tauri window is snapped narrow or maximized
+           on a large/high-DPI monitor. */
+        .dv-topbar .dv-title {
+            font-weight: 700; font-size: clamp(1.15rem, 1rem + 1vw, 1.6rem); letter-spacing: -.01em; margin: 0; color: #000;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .dv-topbar .dv-subtitle { font-size: .95rem; color: #000; margin: .2rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .dv-user { display: flex; align-items: center; gap: .75rem; }
         .dv-user .name { font-size: 1rem; font-weight: 600; line-height: 1.2; color: #000; }
         .dv-user .role { font-size: .82rem; color: #000; }
@@ -136,6 +218,18 @@
             -webkit-backdrop-filter: blur(18px) saturate(200%); backdrop-filter: blur(18px) saturate(200%);
             border: 1px solid rgba(255, 255, 255, .45);
             box-shadow: 0 8px 20px rgba(30, 41, 59, .18), inset 0 1px 1px rgba(255, 255, 255, .5);
+            transition: transform .32s var(--dv-spring), box-shadow .2s ease,
+                        -webkit-backdrop-filter .2s ease, backdrop-filter .2s ease, filter .15s ease;
+        }
+        /* Liquid Glass press feedback: a slight non-uniform squash (rounder
+           shapes deform rather than uniformly shrinking) plus a deeper
+           blur/saturation and a touch of darkening — "el fondo se difumina y
+           oscurece para mejorar la legibilidad" — then a spring back on release. */
+        .dv-glass-chip:active {
+            transform: scale(.92, .88);
+            -webkit-backdrop-filter: blur(24px) saturate(230%); backdrop-filter: blur(24px) saturate(230%);
+            filter: brightness(.92);
+            box-shadow: 0 4px 10px rgba(30, 41, 59, .22), inset 0 1px 1px rgba(255, 255, 255, .5);
         }
         .glass-fill-blue { background: linear-gradient(135deg, rgba(79, 124, 255, .88), rgba(122, 162, 255, .88)); }
         .glass-fill-purple { background: linear-gradient(135deg, rgba(139, 107, 255, .88), rgba(169, 139, 255, .88)); }
@@ -159,11 +253,21 @@
             display: flex; align-items: center; gap: .5rem; width: 100%;
             padding: .7rem 1rem; border-radius: .75rem; text-decoration: none;
             color: #fff; font-weight: 600; font-size: .88rem; cursor: pointer;
+            transition: filter .15s ease, transform .32s var(--dv-spring), border-radius .32s var(--dv-spring),
+                        -webkit-backdrop-filter .2s ease, backdrop-filter .2s ease;
         }
         .glass-quick-btn:hover { color: #fff; filter: brightness(1.06); }
+        .glass-quick-btn:active {
+            transform: scale(.96); border-radius: 1.05rem; filter: brightness(.9);
+            -webkit-backdrop-filter: blur(24px) saturate(230%); backdrop-filter: blur(24px) saturate(230%);
+        }
 
-        .dv-main { margin-left: var(--dv-sidebar-w); height: 100vh; overflow-y: auto; padding: 1.5rem 1.75rem 2.5rem; }
-        .dv-content { padding-top: .5rem; }
+        .dv-main {
+            margin-left: var(--dv-sidebar-w); height: 100vh; overflow-y: auto; overflow-x: hidden;
+            padding: 1.5rem clamp(1rem, 1rem + 1.5vw, 1.75rem) 2.5rem;
+            transition: margin-left .2s ease;
+        }
+        .dv-content { padding-top: .5rem; min-width: 0; }
 
         /* Liquid-glass refraction ring: a conic-gradient "rim light" masked into a thin
            border, simulating how light bends/splits at the edge of curved glass.
@@ -204,7 +308,7 @@
                their square corners poke out past the card's rounded ones. */
             overflow: hidden;
         }
-        .stat-card .stat-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -.01em; color: #000; }
+        .stat-card .stat-value { font-size: clamp(1.35rem, 1.1rem + .9vw, 1.75rem); font-weight: 800; letter-spacing: -.01em; color: #000; }
         .stat-card .text-muted { font-size: .9rem !important; }
         .stat-card .stat-icon {
             width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center;
@@ -236,6 +340,17 @@
         }
         .table tbody tr:hover { background: rgba(79, 124, 255, .07); }
 
+        /* Wide pivot tables (e.g. liquidación's cliente × financiera matrix)
+           scroll horizontally on narrow windows via .table-responsive; pin
+           the leading "Cliente"/"TOTALES" column so it stays in view while
+           scrolling through the rest — otherwise a scrolled row is just
+           numbers with no idea whose they are. */
+        .dv-matrix-scroll .dv-matrix-pin {
+            position: sticky; left: 0; z-index: 1;
+            background: rgba(255, 255, 255, .92); box-shadow: 1px 0 0 rgba(20, 30, 50, .1);
+        }
+        .dv-matrix-scroll thead .dv-matrix-pin { z-index: 2; }
+
         /* Pill badges with status dot */
         .badge {
             font-weight: 600; font-size: .72rem; padding: .38rem .65rem; border-radius: 999px;
@@ -251,28 +366,109 @@
 
         /* The app's search/filter bars use Bootstrap's -sm inputs/buttons,
            which read too small next to the larger table text — bump them
-           back up app-wide instead of editing every view. */
-        .form-control-sm, .form-select-sm { font-size: 1rem; padding: .55rem .85rem; }
+           back up app-wide instead of editing every view. A plain shorthand
+           `padding: Y X` here was clobbering .form-select's right padding
+           (2.25rem, reserved for the dropdown chevron) down to .85rem on
+           every -sm select — with less room reserved than the chevron
+           needs, long option text ran under/behind the arrow instead of
+           stopping short of it. Give selects their own rule that keeps that
+           space. */
+        .form-control-sm { font-size: 1rem; padding: .55rem .85rem; }
+        .form-select-sm { font-size: 1rem; padding: .55rem 2.25rem .55rem .85rem; }
         .btn-sm { font-size: .92rem; padding: .5rem .9rem; }
         .table td.text-center.text-muted { font-size: 1.05rem; padding: 2.5rem 1rem; }
+
+        /* Liquid Glass press feedback, app-wide on every Bootstrap button:
+           compress + round off further while held (physical deformation),
+           darken a touch (keeps label legible against the press state), then
+           spring back past their resting size on release via the overshoot
+           easing — reads as a soft bounce rather than a linear snap. */
+        .btn {
+            transition: transform .32s var(--dv-spring), border-radius .32s var(--dv-spring),
+                        filter .15s ease, box-shadow .15s ease, background-color .15s ease;
+        }
+        .btn:active { transform: scale(.96); filter: brightness(.92); }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--dv-accent), #6f9bff); border: none;
             box-shadow: 0 6px 14px rgba(79, 124, 255, .3); border-radius: 12px;
         }
+        .btn-primary:active { border-radius: 16px; box-shadow: 0 2px 6px rgba(79, 124, 255, .3); }
         .btn-outline-primary { border-radius: 12px; border-color: var(--dv-accent); color: var(--dv-accent); }
+        .btn-outline-primary:active, .btn-outline-secondary:active, .btn-outline-danger:active { border-radius: 14px; }
         .btn-outline-secondary, .btn-outline-danger { border-radius: 10px; }
         .form-control, .form-select { border-radius: 10px; border-color: rgba(0, 0, 0, .1); }
         .alert { border-radius: 14px; border: none; }
+
+        /* Liquid Glass press feedback keeps its darken/blur cues either way
+           (still real affordance that a press registered) but drops the
+           scale/bounce motion for anyone who's asked the OS for less of it. */
+        @media (prefers-reduced-motion: reduce) {
+            .btn, .btn:active, .dv-sidebar a, .dv-sidebar a:active,
+            .dv-glass-chip, .dv-glass-chip:active, .glass-quick-btn, .glass-quick-btn:active {
+                transform: none !important; transition-duration: .12s;
+            }
+        }
+
+        /* ===== Responsive =====
+           Adapts continuously to the actual window/viewport size — not a
+           single "mobile" breakpoint. Fluid type above (clamp()) covers the
+           gradual scaling; these breakpoints cover structural changes the
+           layout needs at specific widths. */
+
+        /* Icon-rail sidebar: below 1200px there isn't room to spare 232px of
+           permanent label text. Icons stay, labels collapse (still reachable
+           via each link's native title="" tooltip on hover). */
+        @media (max-width: 1199.98px) {
+            :root { --dv-sidebar-w: 72px; }
+            .dv-sidebar .brand { justify-content: center; padding-left: .5rem; padding-right: .5rem; }
+            .dv-sidebar a { justify-content: center; padding: .8rem; }
+            .dv-sidebar a i { width: auto; font-size: 1.3rem; }
+            .dv-sidebar-footer { justify-content: center; padding-left: .5rem; padding-right: .5rem; }
+            .dv-sidebar .dv-label { display: none; }
+        }
+
+        /* Narrow window: the admin's own name/role competes with the screen
+           title for space and isn't information the screen depends on, so
+           drop to just the avatar. Topbar chrome tightens up too. */
+        @media (max-width: 860px) {
+            .dv-user-text { display: none; }
+            .dv-topbar { padding: 1rem 1.1rem; margin: -1.5rem -1.1rem 1.5rem; }
+        }
+
+        @media (max-width: 640px) {
+            .dv-main { padding-left: .85rem; padding-right: .85rem; }
+            .stat-card .stat-icon { width: 38px; height: 38px; font-size: 1rem; }
+            .dv-topbar .dv-title { max-width: 60vw; }
+        }
+
+        /* Very large / high-DPI monitors: let data-dense tables and forms
+           keep using the extra width (more columns/whitespace visible is a
+           win), but stop dashboard stat cards from stretching absurdly thin
+           relative to their icon+number content — add a 5th/6th column
+           worth of breathing room instead of one giant row. */
+        @media (min-width: 1800px) {
+            .dv-main { padding-left: clamp(1.75rem, 2vw, 3rem); padding-right: clamp(1.75rem, 2vw, 3rem); }
+        }
     </style>
 </head>
 <body>
+    <div id="dv-progress"></div>
+    <div class="dv-nav-slow-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando…</span></div></div>
     <div id="dv-preloader">
-        <div class="dv-loading">
-            <div class="brand"></div>
-            <h1>DistriVale</h1>
-            <p>Cargando…</p>
-            <div class="dv-spinner"></div>
+        <div class="dv-splash">
+            <svg class="dv-splash-icon" width="72" height="72" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                <defs>
+                    <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+                        <stop offset="0" stop-color="#7aa2ff"/>
+                        <stop offset="1" stop-color="#4f7cff"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
+                <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
+                      stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="dv-splash-text">DistriVale</div>
         </div>
     </div>
     <noscript><style>body > *:not(#dv-preloader) { visibility: visible !important; } #dv-preloader { display: none !important; }</style></noscript>
@@ -280,41 +476,41 @@
     <div class="dv-titlebar"></div>
     <nav class="dv-sidebar">
         <div class="brand">
-            <span class="brand-icon"><i class="bi bi-cash-coin"></i></span> DistriVale
+            <span class="brand-icon"><i class="bi bi-cash-coin"></i></span> <span class="dv-label">DistriVale</span>
         </div>
 
-        <nav>
-            <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                <i class="bi bi-house-door"></i> Inicio
+        <nav id="dv-sidebar-nav">
+            <a href="{{ route('dashboard') }}" title="Inicio" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                <i class="bi bi-house-door"></i> <span class="dv-label">Inicio</span>
             </a>
-            <a href="{{ route('clientes.index') }}" class="{{ request()->routeIs('clientes.*') ? 'active' : '' }}">
-                <i class="bi bi-people"></i> Clientes
+            <a href="{{ route('clientes.index') }}" title="Clientes" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('clientes.*') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> <span class="dv-label">Clientes</span>
             </a>
-            <a href="{{ route('vales.index') }}" class="{{ request()->routeIs('vales.*') ? 'active' : '' }}">
-                <i class="bi bi-ticket-perforated"></i> Créditos / Vales
+            <a href="{{ route('vales.index') }}" title="Créditos / Vales" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('vales.*') ? 'active' : '' }}">
+                <i class="bi bi-ticket-perforated"></i> <span class="dv-label">Créditos / Vales</span>
             </a>
-            <a href="{{ route('financieras.index') }}" class="{{ request()->routeIs('financieras.*') ? 'active' : '' }}">
-                <i class="bi bi-bank"></i> Financieras
+            <a href="{{ route('financieras.index') }}" title="Financieras" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('financieras.*') ? 'active' : '' }}">
+                <i class="bi bi-bank"></i> <span class="dv-label">Financieras</span>
             </a>
-            <a href="{{ route('recibos.index') }}" class="{{ request()->routeIs('recibos.*') ? 'active' : '' }}">
-                <i class="bi bi-receipt"></i> Cobranza
+            <a href="{{ route('recibos.index') }}" title="Cobranza" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('recibos.*') ? 'active' : '' }}">
+                <i class="bi bi-receipt"></i> <span class="dv-label">Cobranza</span>
             </a>
-            <a href="{{ route('liquidaciones.index') }}" class="{{ request()->routeIs('liquidaciones.*') ? 'active' : '' }}">
-                <i class="bi bi-calculator"></i> Liquidación
+            <a href="{{ route('liquidaciones.index') }}" title="Liquidación" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('liquidaciones.*') ? 'active' : '' }}">
+                <i class="bi bi-calculator"></i> <span class="dv-label">Liquidación</span>
             </a>
         </nav>
 
-        <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> Sistema local</div>
+        <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> <span class="dv-label">Sistema local</span></div>
     </nav>
 
     <main class="dv-main">
         <div class="dv-topbar">
-            <div>
+            <div class="dv-topbar-heading">
                 <p class="dv-title">@yield('title', 'Panel')</p>
-                @hasSection('subtitle')<p class="dv-subtitle">@yield('subtitle')</p>@endif
+                <p class="dv-subtitle">@yield('subtitle')</p>
             </div>
-            <div class="d-flex align-items-center gap-3">
-                @hasSection('actions') <div>@yield('actions')</div> @endif
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div id="dv-topbar-actions">@yield('actions')</div>
                 <button type="button" class="dv-glass-chip dv-bell-glass" data-bs-toggle="modal" data-bs-target="#modalVencimientos">
                     <span class="dv-bell-inner{{ $vencimientos->count() > 0 ? ' has-alerts' : '' }}"><i class="bi bi-bell"></i></span>
                 </button>
@@ -322,7 +518,7 @@
                     <div class="dv-glass-chip dv-avatar-glass glass-fill-blue">
                         <span class="dv-avatar-inner">EV</span>
                     </div>
-                    <div>
+                    <div class="dv-user-text">
                         <div class="name">Elia Véliz</div>
                         <div class="role">Administradora</div>
                     </div>
@@ -330,26 +526,28 @@
             </div>
         </div>
 
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+        <div id="dv-view">
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ session('success') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
 
-        @if ($errors->any())
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <ul class="mb-0">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
+            @if ($errors->any())
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
 
-        <div class="dv-content">
-            @yield('content')
+            <div class="dv-content">
+                @yield('content')
+            </div>
         </div>
     </main>
 
@@ -379,8 +577,17 @@
     </div>
 
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+    {{-- Loaded once here (persistent shell), not per-page: with in-place
+         navigation (dv-nav.js) a per-page <script src> would re-fetch and
+         re-execute the whole library every time the user visits a chart
+         screen again. Only the per-chart `new Chart(...)` calls live in
+         each view's @push('scripts'), re-run on every navigation to it. --}}
+    <script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 
-    @stack('scripts')
+    <div id="dv-page-scripts">@stack('scripts')</div>
+
+    <script src="{{ asset('js/dv-nav.js') }}"></script>
+    <script src="{{ asset('js/dv-ui.js') }}"></script>
 
     <script>
         // Reveal gate: the whole page starts hidden behind #dv-preloader (see

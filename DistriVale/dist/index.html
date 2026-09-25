@@ -4,34 +4,70 @@
 <meta charset="UTF-8">
 <title>DistriVale</title>
 <style>
+    /* Disney+/Netflix-style title card: dark vignette tinted to the brand's
+       own blue, and a mark with no filled plate behind it — just the glyph,
+       fading/scaling in once and settling into a slow ambient glow pulse.
+       Mirrors DistriValeWeb's own #dv-preloader (see layouts/app.blade.php)
+       so the two hand off to each other without a visual jump: this page is
+       shown first while main.rs boots php artisan serve, then main.rs
+       navigates the window straight to the Laravel app, which shows its own
+       matching splash for the brief moment its own assets settle. */
+    /* A CSS radial-gradient() here shows a visible vertical seam in
+       WebView2/Chromium — a real rasterization artifact of that gradient
+       type, confirmed in the actual packaged app (not a test-only fluke,
+       and not fixed by making the stops opaque). Built the same soft
+       vignette a different way: solid background + a large, heavily
+       blurred circle (filter: blur(), not a gradient) as the glow — see
+       app.blade.php's #dv-preloader for the matching fix. */
     html, body {
         height: 100%; margin: 0;
-        background: #0c4660;
+        background: #05070c;
         font-family: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
         display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
     }
-    .dv-loading { text-align: center; color: #fff; }
-    .dv-loading .brand {
-        width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 1.1rem;
-        background: linear-gradient(135deg, #4f7cff, #7aa2ff);
-        box-shadow: 0 8px 24px rgba(79, 124, 255, .45);
+    body::before {
+        content: ""; position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
+        width: min(70vmax, 900px); height: min(70vmax, 900px);
+        background: #2e4d8f; border-radius: 50%; filter: blur(140px); opacity: .65;
     }
-    .dv-loading h1 { font-size: 1.15rem; font-weight: 600; margin: 0 0 .35rem; }
-    .dv-loading p { font-size: .85rem; color: #aab4c6; margin: 0; }
-    .dv-spinner {
-        width: 26px; height: 26px; margin: 1.25rem auto 0;
-        border: 3px solid rgba(255, 255, 255, .2); border-top-color: #7aa2ff;
-        border-radius: 50%; animation: dv-spin 0.8s linear infinite;
+    .dv-splash { text-align: center; position: relative; z-index: 1; }
+    .dv-splash-icon {
+        display: block; margin: 0 auto 1.15rem;
+        filter: drop-shadow(0 0 16px rgba(79, 124, 255, .45));
+        animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both,
+                   dv-splash-pulse 2.6s ease-in-out .7s infinite;
     }
-    @keyframes dv-spin { to { transform: rotate(360deg); } }
+    .dv-splash-text {
+        color: #fff; font-weight: 600; font-size: 1rem; letter-spacing: .16em;
+        text-transform: uppercase; opacity: 0;
+        animation: dv-splash-text-in .6s ease-out .4s forwards;
+    }
+    @keyframes dv-splash-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
+    @keyframes dv-splash-pulse {
+        0%, 100% { filter: drop-shadow(0 0 14px rgba(79, 124, 255, .42)); }
+        50% { filter: drop-shadow(0 0 28px rgba(122, 162, 255, .75)); }
+    }
+    @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) {
+        .dv-splash-icon { animation: dv-splash-in .3s ease both; }
+    }
 </style>
 </head>
 <body>
-    <div class="dv-loading">
-        <div class="brand"></div>
-        <h1>DistriVale</h1>
-        <p>Iniciando el sistema…</p>
-        <div class="dv-spinner"></div>
+    <div class="dv-splash">
+        <svg class="dv-splash-icon" width="72" height="72" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <defs>
+                <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stop-color="#7aa2ff"/>
+                    <stop offset="1" stop-color="#4f7cff"/>
+                </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
+            <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
+                  stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="dv-splash-text">DistriVale</div>
     </div>
 </body>
 </html>

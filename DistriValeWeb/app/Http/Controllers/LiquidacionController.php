@@ -106,6 +106,16 @@ class LiquidacionController extends Controller
             ->orderBy('nombre_completo')
             ->get();
 
+        // Pagos del período, agregados por vale en una sola consulta en vez de
+        // una consulta por cada combinación cliente × financiera (antes eran
+        // cientos de queries en esta pantalla; ahora es una sola).
+        $pagosPorVale = DetalleReciboVale::query()
+            ->join('recibos_consolidados', 'recibos_consolidados.id_recibo', '=', 'detalle_recibo_vales.id_recibo')
+            ->where('recibos_consolidados.periodo_quincena', $periodo)
+            ->groupBy('detalle_recibo_vales.id_vale')
+            ->selectRaw('detalle_recibo_vales.id_vale, SUM(detalle_recibo_vales.monto_pago) as total_pago')
+            ->pluck('total_pago', 'id_vale');
+
         $matriz = [];
         $totales = ['por_financiera' => [], 'cuota' => 0, 'pago' => 0, 'saldo' => 0];
 
@@ -124,9 +134,7 @@ class LiquidacionController extends Controller
                     continue;
                 }
 
-                $pago = (float) DetalleReciboVale::where('id_vale', $vale->id_vale)
-                    ->whereHas('recibo', fn ($q) => $q->where('periodo_quincena', $periodo))
-                    ->sum('monto_pago');
+                $pago = (float) ($pagosPorVale[$vale->id_vale] ?? 0);
 
                 $fila['financieras'][$f->id_financiera] = [
                     'cuota' => (float) $vale->cuota_quincenal,

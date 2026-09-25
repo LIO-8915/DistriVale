@@ -18,7 +18,8 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Manager, Url, WindowEvent};
+use tauri::webview::DownloadEvent;
+use tauri::{AppHandle, Manager, Url, WebviewWindowBuilder, WindowEvent};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -84,6 +85,36 @@ fn wait_for_server(port: u16, timeout: Duration) -> bool {
     false
 }
 
+/// Cada descarga (recibos, liquidaciones y clientes en PDF) pregunta dónde
+/// guardar el archivo con el diálogo nativo "Guardar como" de Windows, en
+/// vez de guardarlo automáticamente en la carpeta de Descargas por defecto.
+/// Cancelar el diálogo cancela la descarga (WebView2 no intenta guardarla
+/// en ningún lado).
+fn handle_download(_webview: tauri::Webview, event: DownloadEvent) -> bool {
+    match event {
+        DownloadEvent::Requested { destination, .. } => {
+            let suggested_name = destination
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "descarga".to_string());
+
+            let mut dialog = rfd::FileDialog::new().set_file_name(&suggested_name);
+            if let Some(dir) = destination.parent() {
+                dialog = dialog.set_directory(dir);
+            }
+
+            match dialog.save_file() {
+                Some(path) => {
+                    *destination = path;
+                    true
+                }
+                None => false, // el usuario canceló el diálogo: no se descarga nada
+            }
+        }
+        _ => true,
+    }
+}
+
 /// Reemplaza la pantalla de carga con un mensaje de error legible cuando
 /// el sidecar de PHP no pudo arrancar, en vez de dejar la ventana en blanco.
 fn show_startup_error(app: &AppHandle, message: &str) {
@@ -105,6 +136,15 @@ fn main() {
             licensing::check_saved_license,
         ])
         .setup(|app| {
+            // Construida acá en vez de dejar que tauri.conf.json la cree
+            // sola (esa entrada ahora tiene "create": false, pero sus demás
+            // propiedades — tamaño, título, etc. — se siguen usando tal
+            // cual vía from_config) porque on_download solo se puede
+            // engancharse al momento de construir la ventana.
+            WebviewWindowBuilder::from_config(app.handle(), &app.config().app.windows[0])?
+                .on_download(handle_download)
+                .build()?;
+
             let app_handle = app.handle().clone();
 
             std::thread::spawn(move || {

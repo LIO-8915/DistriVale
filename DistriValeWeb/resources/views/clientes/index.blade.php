@@ -8,24 +8,29 @@
 
 @section('content')
 <div class="card p-3 mb-3">
-    <div class="row g-2">
-        <div class="col-md-6">
-            <input type="text" id="clientesSearch" value="{{ request('q') }}" class="form-control" placeholder="Buscar por nombre, teléfono o financiera...">
-        </div>
-        <div class="col-md-3">
-            <select id="clientesFinanciera" class="form-select">
-                <option value="">Todas las financieras</option>
-                @foreach ($financieras as $f)
-                    <option value="{{ $f->id_financiera }}" @selected(request('id_financiera') == $f->id_financiera)>{{ $f->nombre }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select id="clientesEstado" class="form-select">
-                <option value="">Todos los estados</option>
-                <option value="activo" @selected(request('estado') === 'activo')>Activo</option>
-                <option value="inactivo" @selected(request('estado') === 'inactivo')>Inactivo</option>
-            </select>
+    <button type="button" class="btn btn-outline-secondary btn-sm d-md-none mb-2 w-100" data-bs-toggle="collapse" data-bs-target="#clientesFiltros">
+        <i class="bi bi-sliders"></i> Filtros
+    </button>
+    <div class="collapse d-md-block" id="clientesFiltros">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <input type="text" id="clientesSearch" value="{{ request('q') }}" class="form-control" placeholder="Buscar por nombre, teléfono o financiera...">
+            </div>
+            <div class="col-md-3">
+                <select id="clientesFinanciera" class="form-select">
+                    <option value="">Todas las financieras</option>
+                    @foreach ($financieras as $f)
+                        <option value="{{ $f->id_financiera }}" @selected(request('id_financiera') == $f->id_financiera)>{{ $f->nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="clientesEstado" class="form-select">
+                    <option value="">Todos los estados</option>
+                    <option value="activo" @selected(request('estado') === 'activo')>Activo</option>
+                    <option value="inactivo" @selected(request('estado') === 'inactivo')>Inactivo</option>
+                </select>
+            </div>
         </div>
     </div>
 </div>
@@ -71,6 +76,26 @@
     var baseUrl = '{{ route('clientes.index') }}';
     var timer = null;
 
+    // Skeleton rows (Bootstrap Placeholder), only shown if the fetch takes
+    // a moment — mirrors the real table's columns so the swap-in doesn't
+    // reflow the page, and never flashes on a fast local response.
+    function skeletonRow() {
+        return '<tr>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-8"></span></span></td>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-6"></span></span></td>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-7"></span></span></td>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-4"></span></span></td>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-5"></span></span></td>' +
+            '<td><span class="placeholder-glow"><span class="placeholder col-5"></span></span></td>' +
+            '<td class="text-end"><span class="placeholder-glow"><span class="placeholder col-4"></span></span></td>' +
+            '</tr>';
+    }
+    function skeletonHtml() {
+        return '<div class="table-responsive"><table class="table align-middle mb-0">' +
+            '<thead><tr><th>Nombre</th><th>Teléfono</th><th>Financiera</th><th># Vales</th><th>Saldo global</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>' +
+            '<tbody>' + skeletonRow().repeat(5) + '</tbody></table></div>';
+    }
+
     function reload(page) {
         var params = new URLSearchParams();
         if (input.value.trim() !== '') params.set('q', input.value.trim());
@@ -78,9 +103,12 @@
         if (selEstado.value) params.set('estado', selEstado.value);
         if (page) params.set('page', page);
 
+        var skeletonTimer = setTimeout(function () { wrap.innerHTML = skeletonHtml(); }, 200);
+
         fetch(baseUrl + '?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (r) { return r.text(); })
             .then(function (html) {
+                clearTimeout(skeletonTimer);
                 wrap.innerHTML = html;
                 history.replaceState(null, '', baseUrl + '?' + params.toString());
             });

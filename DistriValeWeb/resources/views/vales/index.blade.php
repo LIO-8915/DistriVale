@@ -7,24 +7,29 @@
 
 @section('content')
 <div class="card p-3 mb-3">
-    <form method="GET" class="row g-2">
-        <div class="col-md-3">
-            <select name="id_financiera" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">Todas las financieras</option>
-                @foreach ($financieras as $f)
-                    <option value="{{ $f->id_financiera }}" @selected(request('id_financiera') == $f->id_financiera)>{{ $f->nombre }}</option>
-                @endforeach
-            </select>
-        </div>
-        <div class="col-md-3">
-            <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
-                <option value="">Todos los estados</option>
-                <option value="ACTIVO" @selected(request('estado') == 'ACTIVO')>Activo</option>
-                <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>En mora</option>
-                <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
-            </select>
-        </div>
-    </form>
+    <button type="button" class="btn btn-outline-secondary btn-sm d-md-none mb-2 w-100" data-bs-toggle="collapse" data-bs-target="#valesFiltros">
+        <i class="bi bi-sliders"></i> Filtros
+    </button>
+    <div class="collapse d-md-block" id="valesFiltros">
+        <form method="GET" class="row g-2">
+            <div class="col-md-3">
+                <select name="id_financiera" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todas las financieras</option>
+                    @foreach ($financieras as $f)
+                        <option value="{{ $f->id_financiera }}" @selected(request('id_financiera') == $f->id_financiera)>{{ $f->nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Todos los estados</option>
+                    <option value="ACTIVO" @selected(request('estado') == 'ACTIVO')>Activo</option>
+                    <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>En mora</option>
+                    <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
+                </select>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
