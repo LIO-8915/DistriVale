@@ -106,15 +106,15 @@
                 @forelse ($actividadReciente as $item)
                     <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="stat-icon {{ $item['positivo'] ? 'icon-green' : 'icon-orange' }}" style="width:34px;height:34px;font-size:.9rem;">
-                                <i class="bi {{ $item['icono'] }}"></i>
+                            <span class="dv-activity-icon">
+                                <img src="{{ asset('images/'.$item['icono']) }}" alt="">
                             </span>
                             <div>
                                 <div class="fw-semibold" style="font-size:.92rem;">{{ $item['titulo'] }} · {{ $item['sub'] }}</div>
                                 <div class="text-muted" style="font-size:.78rem;">{{ $item['fecha']->diffForHumans() }}</div>
                             </div>
                         </div>
-                        <div class="fw-bold {{ $item['positivo'] ? 'text-success' : 'text-danger' }}">
+                        <div class="dv-activity-amount {{ $item['positivo'] ? 'text-success' : 'text-danger' }}">
                             {{ $item['positivo'] ? '+' : '-' }}${{ number_format($item['monto'], 2) }}
                         </div>
                     </div>
@@ -183,6 +183,19 @@
 
 @push('scripts')
 <script>
+    // dv-nav.js reinyecta este script cada vez que se vuelve a Inicio (sin
+    // recargar la página completa), y ambas gráficas usan un <canvas> con
+    // el mismo id de siempre. Si el Chart anterior nunca se destruye,
+    // Chart.js lo sigue teniendo registrado contra ese id y la nueva
+    // instancia falla en silencio (o el navegador va acumulando gráficas
+    // "fantasma" cada vez que se entra y se sale de Inicio) — la tabla de
+    // Distribución por financiera dejaba de dibujarse justo por esto.
+    // Chart.getChart() localiza la instancia previa (si sigue viva) para
+    // destruirla antes de crear la nueva, así siempre queda solo una.
+    [Chart.getChart('chartAvance'), Chart.getChart('chartFinanciera')]
+        .filter(Boolean)
+        .forEach(chart => chart.destroy());
+
     new Chart(document.getElementById('chartAvance'), {
         type: 'doughnut',
         data: {

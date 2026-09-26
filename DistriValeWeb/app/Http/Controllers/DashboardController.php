@@ -79,28 +79,28 @@ class DashboardController extends Controller
         $pagos = DetalleReciboVale::with('recibo.cliente')
             ->latest('created_at')->take(8)->get()
             ->map(fn ($d) => [
-                'icono' => 'bi-cash-coin', 'color' => 'green',
+                'icono' => 'icono-vale-check.webp',
                 'titulo' => 'Pago recibido', 'sub' => $d->recibo->cliente->nombre_completo ?? '—',
                 'monto' => (float) $d->monto_pago, 'positivo' => true, 'fecha' => $d->created_at,
             ]);
 
         $creditos = Vale::with('cliente')->latest('created_at')->take(8)->get()
             ->map(fn ($v) => [
-                'icono' => 'bi-ticket-perforated', 'color' => 'green',
+                'icono' => 'icono-vale-check.webp',
                 'titulo' => 'Crédito aprobado', 'sub' => 'Vale '.$v->folio_vale,
                 'monto' => (float) $v->monto_original, 'positivo' => true, 'fecha' => $v->created_at,
             ]);
 
         $depositos = LiquidacionQuincena::with('financiera')->latest('created_at')->take(8)->get()
             ->map(fn ($l) => [
-                'icono' => 'bi-bank2', 'color' => 'green',
+                'icono' => 'icono-vale-actualizado.webp',
                 'titulo' => 'Depósito registrado', 'sub' => $l->financiera->nombre ?? '—',
                 'monto' => (float) $l->monto_depositar, 'positivo' => true, 'fecha' => $l->created_at,
             ]);
 
         $vencidos = Vale::with('cliente')->where('estado', 'EN_MORA')->latest('updated_at')->take(8)->get()
             ->map(fn ($v) => [
-                'icono' => 'bi-exclamation-triangle', 'color' => 'red',
+                'icono' => 'icono-vale-atrasado.webp',
                 'titulo' => 'Pago vencido', 'sub' => $v->cliente->nombre_completo ?? '—',
                 'monto' => (float) $v->cuota_quincenal, 'positivo' => false, 'fecha' => $v->updated_at,
             ]);

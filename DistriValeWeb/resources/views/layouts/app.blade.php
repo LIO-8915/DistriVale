@@ -47,10 +47,17 @@
         #dv-preloader .dv-splash-icon-wrap {
             position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
         }
-        #dv-preloader .dv-splash-icon {
-            display: block; position: relative; z-index: 1;
+        /* Mismo distintivo que el resto de la app (ícono del sidebar, ícono
+           de la app de Windows): círculo con el degradado de marca y el
+           logo blanco encima. */
+        #dv-preloader .dv-splash-badge {
+            width: 100%; height: 100%; border-radius: 50%;
+            background: linear-gradient(135deg, #4f7cff, #7aa2ff);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(79, 124, 255, .45);
             animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both;
         }
+        #dv-preloader .dv-splash-icon { display: block; width: 62%; height: 62%; }
         #dv-preloader .dv-splash-text {
             font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #fff;
             font-weight: 600; font-size: 1rem; letter-spacing: .16em; text-transform: uppercase; opacity: 0;
@@ -59,7 +66,7 @@
         @keyframes dv-splash-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
         @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
         @media (prefers-reduced-motion: reduce) {
-            #dv-preloader .dv-splash-icon { animation: dv-splash-in .3s ease both; }
+            #dv-preloader .dv-splash-badge { animation: dv-splash-in .3s ease both; }
         }
 
         /* Slim top progress bar shown while dv-nav.js fetches a screen. */
@@ -170,6 +177,7 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 14px rgba(79, 124, 255, .45);
         }
+        .dv-sidebar .brand .brand-icon img { width: 62%; height: 62%; }
         .dv-sidebar .section-title {
             padding: 1.1rem 1.25rem .35rem; font-size: .68rem; text-transform: uppercase;
             color: #5b6779; letter-spacing: .08em; font-weight: 600;
@@ -412,6 +420,32 @@
         .icon-purple { background: linear-gradient(135deg, #8b6bff, #a98bff); }
         .icon-green { background: linear-gradient(135deg, #2bc48a, #57d9a5); }
 
+        /* Actividad reciente: el ícono ya no lleva un cuadro de color sólido
+           detrás — un círculo de cristal muy transparente (blur ligero: son
+           varios a la vez en esta lista, no vale la pena un blur pesado
+           como el de una tarjeta grande) con el ícono correspondiente al
+           tipo de movimiento adentro. El monto va en su propia píldora de
+           cristal, mismo tratamiento que la tarjeta "Quincena actual" del
+           header pero a su tamaño, no a las dimensiones de esa tarjeta. */
+        .dv-activity-icon {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 255, 255, .16);
+            border: 1px solid rgba(255, 255, 255, .4);
+            -webkit-backdrop-filter: blur(10px) saturate(160%);
+            backdrop-filter: blur(10px) saturate(160%);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, .5);
+        }
+        .dv-activity-icon img { width: 19px; height: 19px; }
+        .dv-activity-amount {
+            padding: .3rem .75rem; border-radius: 999px; font-weight: 700; font-size: .92rem;
+            background: rgba(255, 255, 255, .5);
+            border: 1px solid rgba(255, 255, 255, .6);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            backdrop-filter: blur(12px) saturate(180%);
+            box-shadow: 0 4px 10px rgba(30, 41, 59, .1), inset 0 1px 1px rgba(255, 255, 255, .6);
+        }
+
         .table { margin-bottom: 0; }
         .table thead th {
             font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;
@@ -609,17 +643,9 @@
     <div id="dv-preloader">
         <div class="dv-splash">
             <div class="dv-splash-icon-wrap">
-                <svg class="dv-splash-icon" width="168" height="168" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                    <defs>
-                        <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-                            <stop offset="0" stop-color="#7aa2ff"/>
-                            <stop offset="1" stop-color="#4f7cff"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
-                    <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
-                          stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                <div class="dv-splash-badge">
+                    <img class="dv-splash-icon" src="{{ asset('images/logo-distrivale.png') }}" alt="" aria-hidden="true">
+                </div>
             </div>
             <div class="dv-splash-text">DistriVale</div>
         </div>
@@ -629,7 +655,7 @@
     <div class="dv-titlebar"></div>
     <nav class="dv-sidebar">
         <div class="brand">
-            <span class="brand-icon"><i class="bi bi-cash-coin"></i></span> <span class="dv-label">DistriVale</span>
+            <span class="brand-icon"><img src="{{ asset('images/logo-distrivale.png') }}" alt=""></span> <span class="dv-label">DistriVale</span>
         </div>
 
         <nav id="dv-sidebar-nav">
@@ -712,17 +738,23 @@
         <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content" style="border-radius: 18px; border: none;">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Pagos vencidos</h5>
+                    <h5 class="modal-title d-flex align-items-center">
+                        <span class="dv-activity-icon me-2"><img src="{{ asset('images/icono-vale-atrasado.webp') }}" alt=""></span>
+                        Pagos vencidos
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     @forelse ($vencimientos as $v)
                         <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
-                            <div>
-                                <div class="fw-semibold">{{ $v->cliente->nombre_completo }}</div>
-                                <div class="text-muted small">{{ $v->financiera->nombre }} · Vale {{ $v->folio_vale }}</div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="dv-activity-icon"><img src="{{ asset('images/icono-vale-atrasado.webp') }}" alt=""></span>
+                                <div>
+                                    <div class="fw-semibold">{{ $v->cliente->nombre_completo }}</div>
+                                    <div class="text-muted small">{{ $v->financiera->nombre }} · Vale {{ $v->folio_vale }}</div>
+                                </div>
                             </div>
-                            <div class="text-danger fw-bold">${{ number_format($v->cuota_quincenal, 2) }}</div>
+                            <div class="dv-activity-amount text-danger">${{ number_format($v->cuota_quincenal, 2) }}</div>
                         </div>
                     @empty
                         <p class="text-muted text-center py-4 mb-0">Sin pagos vencidos por el momento.</p>

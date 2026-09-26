@@ -35,18 +35,25 @@
     .dv-splash-icon-wrap {
         position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
     }
-    /* "Sol naciente": sube rápido desde abajo, decelerando al acercarse al
+    /* Mismo distintivo que el resto de la app (ícono del sidebar, ícono de
+       la app de Windows): círculo con el degradado de marca y el logo
+       blanco encima, en vez del viejo trazo de línea dibujado a mano.
+       "Sol naciente": sube rápido desde abajo, decelerando al acercarse al
        centro, se pasa de largo hacia arriba, cae con un solo rebote y se
        fija en el centro — mientras se asienta, crece un poco de tamaño,
        pero ese crecimiento es gradual (se completa junto con el rebote),
        no un salto de tamaño inmediato. Los porcentajes del keyframe (no un
        solo cubic-bezier) son los que dibujan la deceleración/rebote; la
-       función linear de abajo deja that shape intacta en vez de sumarle
+       función linear de abajo deja esa forma intacta en vez de sumarle
        otra curva encima. */
-    .dv-splash-icon {
-        display: block; position: relative; z-index: 1;
+    .dv-splash-badge {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: linear-gradient(135deg, #4f7cff, #7aa2ff);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 10px 30px rgba(79, 124, 255, .45);
         animation: dv-splash-sunrise 1.1s linear both;
     }
+    .dv-splash-icon { display: block; width: 62%; height: 62%; }
     .dv-splash-text {
         color: #fff; font-weight: 600; font-size: 1rem; letter-spacing: .16em;
         text-transform: uppercase; opacity: 0;
@@ -64,7 +71,7 @@
     }
     @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
     @media (prefers-reduced-motion: reduce) {
-        .dv-splash-icon { animation: dv-splash-in-reduced .3s ease both; }
+        .dv-splash-badge { animation: dv-splash-in-reduced .3s ease both; }
     }
     @keyframes dv-splash-in-reduced { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 </style>
@@ -72,17 +79,9 @@
 <body>
     <div class="dv-splash">
         <div class="dv-splash-icon-wrap">
-            <svg class="dv-splash-icon" width="168" height="168" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                <defs>
-                    <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stop-color="#7aa2ff"/>
-                        <stop offset="1" stop-color="#4f7cff"/>
-                    </linearGradient>
-                </defs>
-                <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
-                <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
-                      stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dv-splash-badge">
+                <img class="dv-splash-icon" src="images/logo-distrivale.png" alt="" aria-hidden="true">
+            </div>
         </div>
         <div class="dv-splash-text">DistriVale</div>
     </div>
