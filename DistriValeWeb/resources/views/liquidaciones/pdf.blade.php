@@ -21,56 +21,75 @@
         </table>
     </div>
 
+    {{-- Seccionado por financiera (no por cliente): un bloque por financiera
+         con todos sus clientes y su subtotal, aunque un cliente se repita en
+         varios bloques. La matriz completa por columnas se salía de los
+         márgenes de la hoja con varias financieras; así cada bloque solo
+         tiene 4 columnas y cabe. --}}
+    @foreach ($financieras as $f)
+        @php
+            $filasFinanciera = collect($matriz)->filter(fn ($fila) => $fila['financieras'][$f->id_financiera] !== null);
+            $subtotal = $totales['por_financiera'][$f->id_financiera];
+        @endphp
+        @if ($filasFinanciera->isNotEmpty())
+            <div class="pdf-table-card">
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th colspan="5">{{ $f->nombre }}</th>
+                        </tr>
+                        <tr>
+                            <th>Cliente</th>
+                            <th class="pdf-num">Cuota</th>
+                            <th class="pdf-num">Pago</th>
+                            <th class="pdf-num">Saldo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($filasFinanciera as $fila)
+                            @php $d = $fila['financieras'][$f->id_financiera]; @endphp
+                            <tr>
+                                <td>{{ $fila['cliente']->nombre_completo }}</td>
+                                <td class="pdf-num">${{ number_format($d['cuota'], 0) }}</td>
+                                <td class="pdf-num">${{ number_format($d['pago'], 0) }}</td>
+                                <td class="pdf-num">${{ number_format($d['saldo'], 0) }}</td>
+                                <td>
+                                    <span class="pdf-badge {{ $fila['oportuno'] ? 'pdf-badge-ACTIVO' : 'pdf-badge-EN_MORA' }}">
+                                        {{ $fila['oportuno'] ? 'Oportuno' : 'Extemporáneo' }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="pdf-total-row">
+                            <td>SUBTOTAL &middot; {{ $filasFinanciera->count() }} clientes</td>
+                            <td class="pdf-num">${{ number_format($subtotal['cuota'], 0) }}</td>
+                            <td class="pdf-num">${{ number_format($subtotal['pago'], 0) }}</td>
+                            <td class="pdf-num">${{ number_format($subtotal['saldo'], 0) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @endif
+    @endforeach
+
+    {{-- El total general y el resumen de cortes van en su propia página,
+         separados de los bloques de clientes por financiera. --}}
+    <div class="pdf-page-break">
     <div class="pdf-table-card">
         <table class="pdf-table">
-            <thead>
-                <tr>
-                    <th>Cliente</th>
-                    @foreach ($financieras as $f)
-                        <th colspan="3">{{ $f->nombre }}</th>
-                    @endforeach
-                    <th>Total</th>
-                    <th>Estado</th>
-                </tr>
-                <tr>
-                    <th></th>
-                    @foreach ($financieras as $f)
-                        <th>Cuota</th><th>Pago</th><th>Saldo</th>
-                    @endforeach
-                    <th></th><th></th>
-                </tr>
-            </thead>
             <tbody>
-                @foreach ($matriz as $fila)
-                    <tr>
-                        <td>{{ $fila['cliente']->nombre_completo }}</td>
-                        @foreach ($financieras as $f)
-                            @php $d = $fila['financieras'][$f->id_financiera]; @endphp
-                            <td>{{ $d ? '$'.number_format($d['cuota'], 0) : '—' }}</td>
-                            <td>{{ $d ? '$'.number_format($d['pago'], 0) : '—' }}</td>
-                            <td>{{ $d ? '$'.number_format($d['saldo'], 0) : '—' }}</td>
-                        @endforeach
-                        <td><strong>${{ number_format($fila['total_saldo'], 0) }}</strong></td>
-                        <td>
-                            <span class="pdf-badge {{ $fila['oportuno'] ? 'pdf-badge-ACTIVO' : 'pdf-badge-EN_MORA' }}">
-                                {{ $fila['oportuno'] ? 'Oportuno' : 'Extemporáneo' }}
-                            </span>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td>TOTALES</td>
-                    @foreach ($financieras as $f)
-                        <td>${{ number_format($totales['por_financiera'][$f->id_financiera]['cuota'], 0) }}</td>
-                        <td>${{ number_format($totales['por_financiera'][$f->id_financiera]['pago'], 0) }}</td>
-                        <td>${{ number_format($totales['por_financiera'][$f->id_financiera]['saldo'], 0) }}</td>
-                    @endforeach
-                    <td>${{ number_format($totales['saldo'], 0) }}</td>
+                <tr class="pdf-total-row">
+                    <td>TOTAL GENERAL &middot; {{ count($matriz) }} clientes</td>
+                    <td class="pdf-num">${{ number_format($totales['cuota'], 0) }}</td>
+                    <td class="pdf-num">${{ number_format($totales['pago'], 0) }}</td>
+                    <td class="pdf-num">${{ number_format($totales['saldo'], 0) }}</td>
                     <td></td>
                 </tr>
-            </tfoot>
+            </tbody>
         </table>
     </div>
 
@@ -112,6 +131,7 @@
             </table>
         </div>
     @endif
+    </div>
 
     <div class="pdf-footer-note">
         DistriVale &middot; Reporte de liquidación quincenal

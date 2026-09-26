@@ -61,12 +61,18 @@ class ImportarCortesSeeder extends Seeder
             $periodo = Quincena::paraFecha($fechaCorte)['periodo_quincena'];
 
             $sumaCuotas = 0;
+            $liquidados = 0;
             foreach ($filas as $fila) {
                 $this->validarFila($conf['nombre'], $fila, $fechaCorte);
                 $cliente = $this->cliente($fila['cliente']);
                 $montoOriginal = $conf['monto_original'] === 'cuota_por_plazo'
                     ? $fila['cuota'] * $fila['m']
                     : $fila['importe'];
+
+                // Si la cuota de este corte cubre todo el saldo, es el último
+                // pago: el vale queda LIQUIDADO con saldo 0 y ese pago fechado
+                // en el corte (así la matriz lo sigue contando en esta quincena).
+                $liquida = round($fila['saldo_anterior'] - $fila['cuota'], 2) <= 0;
 
                 Vale::updateOrCreate(
                     ['id_financiera' => $financiera->id_financiera, 'folio_vale' => $fila['folio']],
@@ -77,10 +83,11 @@ class ImportarCortesSeeder extends Seeder
                         'cuota_quincenal' => $fila['cuota'],
                         'total_quincenas' => $fila['m'],
                         'quincena_actual' => $fila['n'],
-                        'saldo_pendiente' => $fila['saldo_anterior'],
-                        'estado' => 'ACTIVO',
-                    ]
+                        'saldo_pendiente' => $liquida ? 0 : $fila['saldo_anterior'],
+                        'estado' => $liquida ? 'LIQUIDADO' : 'ACTIVO',
+                    ] + ($liquida ? ['fecha_ultimo_pago' => $fechaCorte] : [])
                 );
+                $liquidados += $liquida ? 1 : 0;
                 $sumaCuotas += $fila['cuota'];
             }
 
@@ -106,8 +113,8 @@ class ImportarCortesSeeder extends Seeder
                 ]
             );
 
-            $this->command?->line(sprintf('  %-12s %s  corte %s  %3d vales  cuotas $%s',
-                $conf['nombre'], $periodo, $fechaCorte->format('d/m/Y'), count($filas), number_format($sumaCuotas, 2)));
+            $this->command?->line(sprintf('  %-12s %s  corte %s  %3d vales (%d liquidados)  cuotas $%s',
+                $conf['nombre'], $periodo, $fechaCorte->format('d/m/Y'), count($filas), $liquidados, number_format($sumaCuotas, 2)));
         }
     }
 

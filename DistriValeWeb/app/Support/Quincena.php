@@ -37,6 +37,23 @@ class Quincena
         return $lista;
     }
 
+    /**
+     * Inverso de paraFecha(): de "16 AL 30 DE SEPTIEMBRE 2026" a sus fechas.
+     * Null si la etiqueta no tiene ese formato.
+     */
+    public static function desdeEtiqueta(string $etiqueta): ?array
+    {
+        $meses = ['ENERO' => 1, 'FEBRERO' => 2, 'MARZO' => 3, 'ABRIL' => 4, 'MAYO' => 5, 'JUNIO' => 6,
+            'JULIO' => 7, 'AGOSTO' => 8, 'SEPTIEMBRE' => 9, 'OCTUBRE' => 10, 'NOVIEMBRE' => 11, 'DICIEMBRE' => 12];
+
+        if (! preg_match('/^(\d{1,2}) AL (\d{1,2}) DE ([A-ZÁÉÍÓÚ]+) (\d{4})$/u', mb_strtoupper(trim($etiqueta)), $m)
+            || ! isset($meses[$m[3]])) {
+            return null;
+        }
+
+        return static::paraFecha(Carbon::create((int) $m[4], $meses[$m[3]], (int) $m[1]));
+    }
+
     public static function paraFecha(Carbon $fecha): array
     {
         if ($fecha->day <= 15) {

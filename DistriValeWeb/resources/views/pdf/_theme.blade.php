@@ -28,8 +28,20 @@
     }
     .pdf-value { font-size: 13px; font-weight: 700; color: #101828; }
 
+    /* Página aparte para el total general y el resumen de cortes: dompdf
+       respeta page-break-before en un contenedor de bloque normal. */
+    .pdf-page-break { page-break-before: always; }
+
     .pdf-table-card { border: 1.4px solid #4f7cff; border-radius: 14px; padding: 2px; margin-bottom: 14px; }
+    /* Si una tabla de financiera no cabe completa, dompdf la corta entre
+       páginas; el encabezado se repite en la página siguiente (thead como
+       "table-header-group") y cada fila se mantiene entera en una sola
+       página, así el corte cae entre filas y no a la mitad de una. El
+       borde de la tarjeta (.pdf-table-card) lo vuelve a dibujar dompdf en
+       cada fragmento de la página, dando continuidad visual al bloque. */
     table.pdf-table { width: 100%; border-collapse: collapse; }
+    table.pdf-table thead { display: table-header-group; }
+    table.pdf-table tbody tr { page-break-inside: avoid; }
     table.pdf-table th {
         background: rgba(79, 124, 255, .14); color: #101828; text-align: left;
         text-transform: uppercase; font-size: 8.5px; letter-spacing: .04em; font-weight: 700;

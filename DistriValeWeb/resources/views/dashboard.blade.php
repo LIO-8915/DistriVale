@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard')
+@section('title', 'Inicio')
 @section('subtitle', 'Resumen de tu cartera y operaciones')
 
 @section('actions')
@@ -14,45 +14,47 @@
 @endsection
 
 @section('content')
-<div class="row g-3 mb-3">
-    <div class="col-6 col-md-3">
+{{-- Siempre 2 columnas × 2 filas (nunca 1 fila de 4), a cualquier ancho, para
+     que las 4 tarjetas guarden simetría y el texto/monto nunca se corte. --}}
+<div class="row g-3 mb-3 dv-stat-row">
+    <div class="col-6">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-blue"><i class="bi bi-people-fill"></i></span>
-                <div>
+                <div class="stat-info">
                     <div class="text-muted small">Clientes activos</div>
                     <div class="stat-value">{{ $totalClientes }}</div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-purple"><i class="bi bi-bank2"></i></span>
-                <div>
+                <div class="stat-info">
                     <div class="text-muted small">Financieras activas</div>
                     <div class="stat-value">{{ $totalFinancieras }}</div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-orange"><i class="bi bi-exclamation-triangle-fill"></i></span>
-                <div>
+                <div class="stat-info">
                     <div class="text-muted small">Activos / En mora</div>
                     <div class="stat-value">{{ $valesActivos }} <span class="text-danger fs-6">/ {{ $valesEnMora }}</span></div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3">
+    <div class="col-6">
         <div class="card stat-card p-3">
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-green"><i class="bi bi-cash-stack"></i></span>
-                <div>
+                <div class="stat-info">
                     <div class="text-muted small">Saldo pendiente total</div>
                     <div class="stat-value">${{ number_format($totalPendiente, 2) }}</div>
                 </div>
@@ -157,7 +159,7 @@
                 <hr>
                 <div class="small text-muted">Última quincena registrada:</div>
                 <div class="fw-semibold">{{ $ultimaQuincena }}</div>
-                <a href="{{ route('liquidaciones.index', ['periodo' => $ultimaQuincena]) }}" class="small">Ver liquidación →</a>
+                <a href="{{ route('liquidaciones.index', ['periodo' => $ultimaQuincena]) }}" class="small" style="color:#000;">Ver liquidación →</a>
             @endif
         </div>
     </div>

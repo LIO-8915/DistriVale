@@ -11,9 +11,9 @@
         <i class="bi bi-sliders"></i> Filtros
     </button>
     <div class="collapse d-md-block" id="valesFiltros">
-        <form method="GET" class="row g-2">
+        <div class="row g-2">
             <div class="col-md-3">
-                <select name="id_financiera" class="form-select form-select-sm" onchange="this.form.submit()">
+                <select id="valesFinanciera" class="form-select form-select-sm">
                     <option value="">Todas las financieras</option>
                     @foreach ($financieras as $f)
                         <option value="{{ $f->id_financiera }}" @selected(request('id_financiera') == $f->id_financiera)>{{ $f->nombre }}</option>
@@ -21,60 +21,65 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <select name="estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                <select id="valesEstado" class="form-select form-select-sm">
                     <option value="">Todos los estados</option>
                     <option value="ACTIVO" @selected(request('estado') == 'ACTIVO')>Activo</option>
                     <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>En mora</option>
                     <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
                 </select>
             </div>
-            {{-- Cambiar un filtro conserva las filas por página elegidas. --}}
-            @if ($porPagina !== \App\Support\PorPagina::DEFECTO)
-                <input type="hidden" name="por_pagina" value="{{ $porPagina }}">
-            @endif
-        </form>
+        </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="px-3 pt-3 pb-2 d-flex justify-content-end">
-        @include('partials.por-pagina', ['porPagina' => $porPagina])
-    </div>
-    <div class="table-responsive">
-        <table class="table align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Cliente</th><th>Financiera</th><th>Folio</th><th>Fecha</th><th>Monto</th>
-                    <th>Cuota</th><th># Pago</th><th>Saldo</th><th>Estado</th><th class="text-end">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($vales as $vale)
-                    <tr>
-                        <td><a href="{{ route('clientes.show', $vale->cliente) }}" class="text-decoration-none">{{ $vale->cliente->nombre_completo }}</a></td>
-                        <td>{{ $vale->financiera->nombre }}</td>
-                        <td>{{ $vale->folio_vale }}</td>
-                        <td class="text-nowrap">{{ $vale->fecha_disposicion?->format('d/m/Y') ?? '—' }}</td>
-                        <td>${{ number_format($vale->monto_original, 2) }}</td>
-                        <td>${{ number_format($vale->cuota_quincenal, 2) }}</td>
-                        <td>{{ $vale->numeroPagoTexto() }}</td>
-                        <td>${{ number_format($vale->saldo_pendiente, 2) }}</td>
-                        <td><span class="badge badge-estado-{{ $vale->estado }}">{{ $vale->estado }}</span></td>
-                        <td class="text-end">
-                            <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
-                            <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este vale?')">
-                                @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="10" class="text-center text-muted py-4">No hay vales registrados.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+<div class="card" id="valesTableWrap">
+    @include('vales._table')
 </div>
 
-<div class="mt-3 dv-pagination">{{ $vales->links() }}</div>
+@push('scripts')
+<script>
+(function () {
+    var selFinanciera = document.getElementById('valesFinanciera');
+    var selEstado = document.getElementById('valesEstado');
+    var wrap = document.getElementById('valesTableWrap');
+    var baseUrl = '{{ route('vales.index') }}';
+    // Filas por página elegidas en esta visita; filtrar las conserva.
+    var porPagina = '{{ $porPagina }}';
+
+    function reload(page) {
+        var params = new URLSearchParams();
+        if (selFinanciera.value) params.set('id_financiera', selFinanciera.value);
+        if (selEstado.value) params.set('estado', selEstado.value);
+        if (porPagina !== '{{ \App\Support\PorPagina::DEFECTO }}') params.set('por_pagina', porPagina);
+        if (page) params.set('page', page);
+
+        fetch(baseUrl + '?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                wrap.innerHTML = html;
+                history.replaceState(null, '', baseUrl + '?' + params.toString());
+            });
+    }
+
+    selFinanciera.addEventListener('change', function () { reload(); });
+    selEstado.addEventListener('change', function () { reload(); });
+
+    wrap.addEventListener('click', function (e) {
+        var opcion = e.target.closest('.dv-por-pagina a');
+        if (opcion) {
+            e.preventDefault();
+            porPagina = opcion.dataset.valor;
+            reload();
+            return;
+        }
+        var link = e.target.closest('.pagination a');
+        if (link) {
+            e.preventDefault();
+            var url = new URL(link.href);
+            reload(url.searchParams.get('page'));
+        }
+    });
+})();
+</script>
+@endpush
 @endsection

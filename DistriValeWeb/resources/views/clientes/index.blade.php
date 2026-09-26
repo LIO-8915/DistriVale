@@ -35,8 +35,10 @@
     </div>
 </div>
 
+{{-- Total + 5 financieras = 6 tarjetas: 6 / 3 / 2 / 1 por fila, siempre
+     en filas parejas (nunca 4 + 2) al cambiar el ancho de la ventana. --}}
 <div class="row g-3 mb-3">
-    <div class="col-md-3 col-lg-2">
+    <div class="col-12 col-sm-6 col-lg-4 col-xxl-2">
         <div class="card stat-card p-3 h-100">
             <div class="d-flex align-items-center gap-2">
                 <span class="stat-icon icon-blue" style="width:36px;height:36px;font-size:.9rem;"><i class="bi bi-people-fill"></i></span>
@@ -48,7 +50,7 @@
         </div>
     </div>
     @foreach ($porFinanciera as $f)
-        <div class="col-md-3 col-lg-2">
+        <div class="col-12 col-sm-6 col-lg-4 col-xxl-2">
             <div class="card stat-card p-3 h-100">
                 <div class="d-flex align-items-center gap-2">
                     <span class="stat-icon icon-purple" style="width:36px;height:36px;font-size:.9rem;"><i class="bi bi-bank"></i></span>
@@ -81,20 +83,22 @@
     // Skeleton rows (Bootstrap Placeholder), only shown if the fetch takes
     // a moment — mirrors the real table's columns so the swap-in doesn't
     // reflow the page, and never flashes on a fast local response.
+    // Mismas clases de visibilidad que _table.blade.php, para que el
+    // esqueleto tenga las mismas columnas que la tabla real a cada ancho.
     function skeletonRow() {
         return '<tr>' +
             '<td><span class="placeholder-glow"><span class="placeholder col-8"></span></span></td>' +
-            '<td><span class="placeholder-glow"><span class="placeholder col-6"></span></span></td>' +
+            '<td class="d-none d-xl-table-cell"><span class="placeholder-glow"><span class="placeholder col-6"></span></span></td>' +
             '<td><span class="placeholder-glow"><span class="placeholder col-7"></span></span></td>' +
-            '<td><span class="placeholder-glow"><span class="placeholder col-4"></span></span></td>' +
+            '<td class="d-none d-lg-table-cell"><span class="placeholder-glow"><span class="placeholder col-4"></span></span></td>' +
             '<td><span class="placeholder-glow"><span class="placeholder col-5"></span></span></td>' +
-            '<td><span class="placeholder-glow"><span class="placeholder col-5"></span></span></td>' +
+            '<td class="d-none d-md-table-cell"><span class="placeholder-glow"><span class="placeholder col-5"></span></span></td>' +
             '<td class="text-end"><span class="placeholder-glow"><span class="placeholder col-4"></span></span></td>' +
             '</tr>';
     }
     function skeletonHtml() {
         return '<div class="table-responsive"><table class="table align-middle mb-0">' +
-            '<thead><tr><th>Nombre</th><th>Teléfono</th><th>Financiera</th><th># Vales</th><th>Saldo global</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>' +
+            '<thead><tr><th>Nombre</th><th class="d-none d-xl-table-cell">Teléfono</th><th>Financiera</th><th class="d-none d-lg-table-cell"># Vales</th><th>Saldo global</th><th class="d-none d-md-table-cell">Estado</th><th class="text-end">Acciones</th></tr></thead>' +
             '<tbody>' + skeletonRow().repeat(5) + '</tbody></table></div>';
     }
 

@@ -95,6 +95,7 @@
             position: fixed; inset: 0; margin-left: var(--dv-sidebar-w);
             display: none; align-items: center; justify-content: center; z-index: 20;
             pointer-events: none;
+            transition: margin-left .2s ease;
         }
         html.dv-nav-slow #dv-view { opacity: .45; transition: opacity .15s ease; }
         html.dv-nav-slow .dv-nav-slow-spinner { display: flex; }
@@ -132,6 +133,19 @@
             background: linear-gradient(180deg, var(--dv-navy) 0%, #0c1420 100%);
             color: #aab4c6; padding: 0; overflow-y: auto;
             box-shadow: 4px 0 24px rgba(0, 0, 0, .12);
+            /* z-index por encima de todo lo que vive dentro de #dv-view (el
+               topbar sticky va en 5, las .card en 1-2 por su borde de vidrio):
+               sin esto, mientras la ventana cruza el punto de quiebre del
+               riel de íconos, esos elementos —al tener su propio stacking
+               context— podían pintarse encima del sidebar. z-index alto a
+               propósito, pero por debajo de los overlays de Bootstrap
+               (modal/tooltip empiezan en 1050+), para no taparlos. */
+            z-index: 15;
+            /* Mismo tiempo/curva que el margin-left de .dv-main: al animar
+               ambos en paralelo nunca queda un cuadro intermedio donde uno ya
+               cambió de ancho y el otro no — eso era lo que producía la
+               sobreposición real. */
+            transition: width .2s ease;
         }
         .dv-sidebar .brand {
             display: flex; align-items: center; gap: .6rem;
@@ -251,18 +265,53 @@
             border-radius: 50%; background: #ff5c72; border: 2px solid #fff;
         }
 
-        /* Dashboard quick-access buttons */
+        /* Dashboard quick-access buttons: borde/sombra siempre visibles y un
+           poco más grandes (texto e ícono); el blur (más pesado para el
+           compositor) se queda solo para el toque al presionar, igual que
+           antes — mismo criterio que el resto de los .dv-glass-chip. */
         .glass-quick-btn {
-            display: flex; align-items: center; gap: .5rem; width: 100%;
+            display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%;
             padding: .7rem 1rem; border-radius: .75rem; text-decoration: none;
-            color: #fff; font-weight: 600; font-size: .88rem; cursor: pointer;
+            color: #fff; font-weight: 600; font-size: 1.05rem; cursor: pointer;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+            border: 1px solid rgba(255, 255, 255, .45);
+            box-shadow: 0 8px 20px rgba(30, 41, 59, .18), inset 0 1px 1px rgba(255, 255, 255, .5);
             transition: filter .15s ease, transform .32s var(--dv-spring), border-radius .32s var(--dv-spring),
                         -webkit-backdrop-filter .2s ease, backdrop-filter .2s ease;
         }
+        .glass-quick-btn i { font-size: 1.3rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
         .glass-quick-btn:hover { color: #fff; filter: brightness(1.06); }
         .glass-quick-btn:active {
             transform: scale(.96); border-radius: 1.05rem; filter: brightness(.9);
             -webkit-backdrop-filter: blur(24px) saturate(230%); backdrop-filter: blur(24px) saturate(230%);
+        }
+        /* Mismos colores que el resto del cristal (avatar, etc.) pero más
+           traslúcidos aquí: estos botones son grandes bloques de color, así
+           que a full opacidad se leían "sólidos" en vez de vidrio. */
+        .glass-quick-btn.glass-fill-blue { background: linear-gradient(135deg, rgba(79, 124, 255, .55), rgba(122, 162, 255, .55)); }
+        .glass-quick-btn.glass-fill-purple { background: linear-gradient(135deg, rgba(139, 107, 255, .55), rgba(169, 139, 255, .55)); }
+        .glass-quick-btn.glass-fill-orange { background: linear-gradient(135deg, rgba(255, 159, 67, .55), rgba(255, 185, 118, .55)); }
+        .glass-quick-btn.glass-fill-green { background: linear-gradient(135deg, rgba(43, 196, 138, .55), rgba(87, 217, 165, .55)); }
+
+        /* Botones del header (@section('actions')): "Descargar PDF",
+           "Registrar liquidación"/"Nuevo ..." y el botón circular de
+           regresar. Un solo selector por contenedor los alcanza a todos sin
+           tocar cada vista — mismo tinte muy sutil y transparente que el
+           resto del cristal de la app, pero sin backdrop-filter (más
+           liviano para el compositor: aquí no hace falta difuminar nada
+           detrás, solo el tinte). */
+        #dv-topbar-actions .btn {
+            box-shadow: 0 8px 20px rgba(30, 41, 59, .14), inset 0 1px 1px rgba(255, 255, 255, .5);
+        }
+        #dv-topbar-actions .btn-primary {
+            background: linear-gradient(135deg, rgba(79, 124, 255, .45), rgba(122, 162, 255, .45));
+            border: 1px solid rgba(255, 255, 255, .5); color: #1c2733;
+        }
+        #dv-topbar-actions .btn-outline-primary {
+            background: rgba(79, 124, 255, .12); border-color: rgba(79, 124, 255, .35);
+        }
+        #dv-topbar-actions .btn-outline-secondary {
+            background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
         }
 
         .dv-main {
@@ -311,11 +360,23 @@
                their square corners poke out past the card's rounded ones. */
             overflow: hidden;
         }
-        .stat-card .stat-value { font-size: clamp(1.35rem, 1.1rem + .9vw, 1.75rem); font-weight: 800; letter-spacing: -.01em; color: #000; }
+        /* La tarjeta recorta su contenido (overflow: hidden, para las
+           esquinas redondeadas), así que el valor nunca debe desbordarse: el
+           texto (icono + info) es flex sin min-width, así que por defecto
+           "Saldo pendiente total" y montos largos se saldrían de la tarjeta
+           en vez de ajustarse — min-width:0 deja que el texto se achique y
+           haga wrap, y overflow-wrap permite partir números largos sin
+           espacios ($1,234,567.89) si aun así no caben en una línea. */
+        .stat-card .d-flex { min-width: 0; }
+        .stat-card .stat-info { min-width: 0; flex: 1 1 auto; }
+        .stat-card .stat-value {
+            font-size: clamp(1.1rem, 1rem + .9vw, 1.75rem); font-weight: 800; letter-spacing: -.01em; color: #000;
+            overflow-wrap: anywhere;
+        }
         .stat-card .text-muted { font-size: .9rem !important; }
         .stat-card .stat-icon {
             width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center;
-            justify-content: center; font-size: 1.2rem; color: #fff;
+            justify-content: center; font-size: 1.2rem; color: #fff; flex: 0 0 auto;
         }
         .card h6 { font-size: 1.08rem; font-weight: 700; color: #000; }
         /* Base text color set once on .card and inherited — badges, links and
@@ -349,10 +410,27 @@
            scrolling through the rest — otherwise a scrolled row is just
            numbers with no idea whose they are. */
         .dv-matrix-scroll .dv-matrix-pin {
-            position: sticky; left: 0; z-index: 1;
+            position: sticky; left: 0; z-index: 1; min-width: 150px;
             background: rgba(255, 255, 255, .92); box-shadow: 1px 0 0 rgba(20, 30, 50, .1);
         }
         .dv-matrix-scroll thead .dv-matrix-pin { z-index: 2; }
+
+        /* Nombre de cliente en tablas (Clientes, Vales, Cobranza, matriz de
+           Liquidación): con columnas angostas un nombre de 4 palabras se
+           partía en 3-4 líneas, difícil de leer. text-wrap:balance reparte
+           las palabras lo más parejo posible entre líneas (4 palabras → 2
+           y 2, no 3 y 1) y -webkit-line-clamp corta duro en 2 líneas como
+           tope — con "…" y title="" para el nombre completo en el caso
+           límite de un nombre excepcionalmente largo en una columna angosta. */
+        .dv-nombre-cliente {
+            display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+            overflow: hidden; text-wrap: balance; line-height: 1.3;
+        }
+        /* Con muchas columnas vecinas (Vales, Cobranza) el nombre se quedaba
+           sin espacio y truncaba de más; con este mínimo la tabla scrollea
+           horizontal (ya viene envuelta en .table-responsive) en vez de
+           apretar el nombre hasta hacerlo ilegible. */
+        .dv-col-cliente { min-width: 170px; }
 
         /* Pill badges with status dot */
         .badge {
@@ -402,6 +480,24 @@
         .btn-outline-secondary, .btn-outline-danger { border-radius: 10px; }
         .form-control, .form-select { border-radius: 10px; border-color: rgba(0, 0, 0, .1); }
         .alert { border-radius: 14px; border: none; }
+
+        /* Selector con búsqueda (cliente/financiera en el form de vales):
+           el input de texto se ve igual que un .form-control normal; el menú
+           flota debajo con la misma tarjeta de cristal que el resto de la
+           app. Ver public/js/dv-searchselect.js. */
+        .dv-searchselect { position: relative; }
+        .dv-searchselect-menu {
+            display: none; position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0;
+            max-height: 260px; overflow-y: auto; padding: .35rem;
+            background: rgba(255, 255, 255, .92);
+            -webkit-backdrop-filter: blur(24px) saturate(200%); backdrop-filter: blur(24px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, .6); border-radius: 12px;
+            box-shadow: 0 14px 34px rgba(30, 41, 59, .22);
+        }
+        .dv-searchselect-menu.show { display: block; }
+        .dv-searchselect-option { padding: .5rem .65rem; border-radius: 8px; font-size: .92rem; cursor: pointer; }
+        .dv-searchselect-option:hover, .dv-searchselect-option.active { background: rgba(79, 124, 255, .14); }
+        .dv-searchselect-empty { padding: .5rem .65rem; font-size: .85rem; color: #667085; }
 
         /* Liquid Glass press feedback keeps its darken/blur cues either way
            (still real affordance that a press registered) but drops the
@@ -461,6 +557,16 @@
             .dv-main { padding-left: .85rem; padding-right: .85rem; }
             .stat-card .stat-icon { width: 38px; height: 38px; font-size: 1rem; }
             .dv-topbar .dv-title { max-width: 60vw; }
+        }
+
+        /* A 2-columna, cada tarjeta superior queda con muy poco ancho neto
+           (icono + separación ya ocupan la mayor parte); icono y texto en
+           fila ya no dejan espacio para números largos como el saldo
+           pendiente. Se apilan icono arriba y texto abajo: todas las
+           tarjetas quedan igual de simétricas y el texto tiene el ancho
+           completo de la tarjeta para acomodarse sin cortarse. */
+        @media (max-width: 480px) {
+            .stat-card .d-flex { flex-direction: column; align-items: flex-start; gap: .5rem; }
         }
 
         /* Very large / high-DPI monitors: let data-dense tables and forms
@@ -607,11 +713,19 @@
          screen again. Only the per-chart `new Chart(...)` calls live in
          each view's @push('scripts'), re-run on every navigation to it. --}}
     <script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
+    <script>
+        // Color de texto por defecto de toda gráfica (ejes, leyendas): el
+        // gris oscuro por defecto de Chart.js es poco legible sobre las
+        // tarjetas de cristal; cada `new Chart(...)` de la app hereda esto
+        // salvo que la propia gráfica lo sobreescriba explícitamente.
+        if (window.Chart) { Chart.defaults.color = '#000'; }
+    </script>
 
     <div id="dv-page-scripts">@stack('scripts')</div>
 
     <script src="{{ asset('js/dv-nav.js') }}"></script>
     <script src="{{ asset('js/dv-ui.js') }}"></script>
+    <script src="{{ asset('js/dv-searchselect.js') }}"></script>
 
     <script>
         // Reveal gate: the whole page starts hidden behind #dv-preloader (see

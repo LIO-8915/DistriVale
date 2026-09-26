@@ -25,6 +25,7 @@ class Vale extends Model
         'quincena_actual',
         'saldo_pendiente',
         'estado',
+        'fecha_ultimo_pago',
     ];
 
     protected $casts = [

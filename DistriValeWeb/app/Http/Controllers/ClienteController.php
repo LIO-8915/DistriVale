@@ -7,6 +7,7 @@ use App\Models\Financiera;
 use App\Models\NotaCliente;
 use App\Models\Vale;
 use App\Support\PorPagina;
+use App\Support\Quincena;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -113,7 +114,14 @@ class ClienteController extends Controller
 
     public function pdf(Cliente $cliente)
     {
-        $cliente->load(['vales' => fn ($q) => $q->whereIn('estado', ['ACTIVO', 'EN_MORA'])->with('financiera')->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
+        // Vigentes + los que se liquidaron en la quincena actual (su último
+        // pago es parte de este periodo; los de quincenas anteriores ya no).
+        $quincena = Quincena::actual();
+        $cliente->load(['vales' => fn ($q) => $q
+            ->where(fn ($w) => $w->whereIn('estado', ['ACTIVO', 'EN_MORA'])
+                ->orWhere(fn ($l) => $l->where('estado', 'LIQUIDADO')
+                    ->whereBetween('fecha_ultimo_pago', [$quincena['inicio']->copy()->startOfDay(), $quincena['fin']->copy()->endOfDay()])))
+            ->with('financiera')->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
 
         $pdf = Pdf::loadView('clientes.pdf', compact('cliente'));
 

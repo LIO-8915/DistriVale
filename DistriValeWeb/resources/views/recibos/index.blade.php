@@ -7,18 +7,16 @@
 
 @section('content')
 <div class="card">
-    <div class="px-3 pt-3 pb-2 d-flex justify-content-end">
-        @include('partials.por-pagina', ['porPagina' => $porPagina])
-    </div>
+    @include('partials.tabla-controles', ['paginador' => $recibos, 'porPagina' => $porPagina])
     <div class="table-responsive">
         <table class="table align-middle mb-0">
             <thead>
-                <tr><th>Cliente</th><th>Fecha de corte</th><th>Total oportuno</th><th>Total extemporáneo</th><th class="text-end">Acciones</th></tr>
+                <tr><th class="dv-col-cliente">Cliente</th><th>Fecha de corte</th><th>Total oportuno</th><th>Total extemporáneo</th><th class="text-end">Acciones</th></tr>
             </thead>
             <tbody>
                 @forelse ($recibos as $recibo)
                     <tr>
-                        <td>{{ $recibo->cliente->nombre_completo }}</td>
+                        <td><span class="dv-nombre-cliente" title="{{ $recibo->cliente->nombre_completo }}">{{ $recibo->cliente->nombre_completo }}</span></td>
                         <td>{{ $recibo->fecha_corte->format('d/m/Y') }}</td>
                         <td>${{ number_format($recibo->total_oportuno, 2) }}</td>
                         <td>${{ number_format($recibo->total_extemporaneo, 2) }}</td>
@@ -33,6 +31,4 @@
         </table>
     </div>
 </div>
-
-<div class="mt-3 dv-pagination">{{ $recibos->links() }}</div>
 @endsection

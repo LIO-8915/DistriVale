@@ -3,16 +3,16 @@
 @section('title', 'Liquidación')
 @section('subtitle', 'Reporte de cobranza y liquidación de la quincena seleccionada.')
 @section('actions')
-    <a href="{{ route('liquidaciones.pdf', ['periodo' => $periodo]) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> Descargar PDF</a>
+    <a href="{{ route('liquidaciones.pdf', ['periodo' => $periodo]) }}" id="liquidacionPdfLink" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> Descargar PDF</a>
     <a href="{{ route('liquidaciones.create') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Registrar liquidación</a>
 @endsection
 
 @section('content')
 <div class="card p-3 mb-3">
-    <form method="GET" class="row g-2 align-items-end">
+    <div class="row g-2 align-items-end">
         <div class="col-md-5">
             <label class="form-label small text-muted mb-1">Quincena</label>
-            <select name="periodo" class="form-select" onchange="this.form.submit()">
+            <select id="liquidacionPeriodo" class="form-select">
                 @foreach ($periodos as $p)
                     <option value="{{ $p }}" @selected($periodo == $p)>{{ $p }}</option>
                 @endforeach
@@ -20,157 +20,92 @@
         </div>
         <div class="col-md-7">
             <div class="text-muted small">Periodo seleccionado</div>
-            <div class="fw-semibold">{{ $periodo }}</div>
-        </div>
-    </form>
-</div>
-
-<div class="row g-3">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="p-3 pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h6 class="mb-0">Clientes por financiera — Cuota / Pago / Saldo</h6>
-                @include('partials.por-pagina', ['porPagina' => $porPagina])
-            </div>
-            <div class="table-responsive dv-matrix-scroll">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th rowspan="2" class="align-middle dv-matrix-pin">Cliente</th>
-                            @foreach ($financieras as $f)
-                                <th colspan="3" class="text-center">{{ $f->nombre }}</th>
-                            @endforeach
-                            <th rowspan="2" class="text-end align-middle">Total</th>
-                            <th rowspan="2" class="align-middle">Estado</th>
-                        </tr>
-                        <tr>
-                            @foreach ($financieras as $f)
-                                <th class="text-end">Cuota</th><th class="text-end">Pago</th><th class="text-end">Saldo</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($matrizPaginada as $fila)
-                            <tr>
-                                <td class="fw-semibold dv-matrix-pin">{{ $fila['cliente']->nombre_completo }}</td>
-                                @foreach ($financieras as $f)
-                                    @php $d = $fila['financieras'][$f->id_financiera]; @endphp
-                                    @if ($d)
-                                        <td class="text-end">${{ number_format($d['cuota'], 0) }}</td>
-                                        <td class="text-end">${{ number_format($d['pago'], 0) }}</td>
-                                        <td class="text-end">${{ number_format($d['saldo'], 0) }}</td>
-                                    @else
-                                        <td class="text-end text-muted">—</td><td class="text-end text-muted">—</td><td class="text-end text-muted">—</td>
-                                    @endif
-                                @endforeach
-                                <td class="text-end fw-bold">${{ number_format($fila['total_saldo'], 0) }}</td>
-                                <td>
-                                    <span class="badge {{ $fila['oportuno'] ? 'bg-success' : '' }}" @if(!$fila['oportuno']) style="background:rgba(255,159,67,.16);color:#c97316;" @endif>
-                                        {{ $fila['oportuno'] ? 'Oportuno' : 'Extemporáneo' }}
-                                    </span>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="{{ count($financieras) * 3 + 3 }}" class="text-center text-muted py-4">Sin clientes con créditos activos.</td></tr>
-                        @endforelse
-                    </tbody>
-                    @if (count($matriz))
-                        <tfoot>
-                            <tr class="table-light fw-bold">
-                                <td class="dv-matrix-pin">TOTALES <span class="fw-normal small text-muted">({{ count($matriz) }} clientes)</span></td>
-                                @foreach ($financieras as $f)
-                                    <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['cuota'], 0) }}</td>
-                                    <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['pago'], 0) }}</td>
-                                    <td class="text-end">${{ number_format($totales['por_financiera'][$f->id_financiera]['saldo'], 0) }}</td>
-                                @endforeach
-                                <td class="text-end">${{ number_format($totales['saldo'], 0) }}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    @endif
-                </table>
-            </div>
-            @if ($matrizPaginada->hasPages())
-                <div class="px-3 py-2 dv-pagination">{{ $matrizPaginada->onEachSide(1)->links() }}</div>
-            @endif
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="card p-3">
-            <h6 class="mb-3">Distribución de saldo por financiera</h6>
-            <canvas id="chartSaldoFinanciera" style="max-height:220px;"></canvas>
-            <div class="d-flex flex-column gap-1 mt-3">
-                @php $totalSaldo = $saldoPorFinanciera->sum('saldo'); @endphp
-                @foreach ($saldoPorFinanciera as $f)
-                    <div class="d-flex justify-content-between small">
-                        <span>{{ $f->nombre }}</span>
-                        <span class="text-muted">{{ $totalSaldo > 0 ? round(($f->saldo ?? 0) / $totalSaldo * 100) : 0 }}%</span>
-                        <span class="fw-semibold">${{ number_format($f->saldo ?? 0, 2) }}</span>
-                    </div>
-                @endforeach
-            </div>
+            <div class="fw-semibold" id="liquidacionPeriodoLabel">{{ $periodo }}</div>
         </div>
     </div>
 </div>
 
-<div class="row g-3 mt-1">
-    <div class="col-12">
-        <div class="card">
-            <div class="p-3 pb-0 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Liquidación con financieras — Cobrar / Poner / Depositar / Ganancias</h6>
-            </div>
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead>
-                        <tr><th>Financiera</th><th>Corte</th><th>Límite de pago</th><th class="text-end">Cobrar</th><th class="text-end">Poner</th><th class="text-end">Depositar</th><th class="text-end">Ganancias</th></tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($liquidaciones as $l)
-                            <tr>
-                                <td>{{ $l->financiera->nombre }}</td>
-                                <td>{{ $l->fecha_corte?->format('d/m/Y') ?? '—' }}</td>
-                                <td>{{ $l->fecha_limite_pago?->format('d/m/Y') ?? '—' }}</td>
-                                <td class="text-end">${{ number_format($l->monto_cobrar, 2) }}</td>
-                                <td class="text-end {{ $l->monto_poner < 0 ? 'text-danger' : '' }}">${{ number_format($l->monto_poner, 2) }}</td>
-                                <td class="text-end">${{ number_format($l->monto_depositar, 2) }}</td>
-                                <td class="text-end">${{ number_format($l->monto_ganancias, 2) }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="7" class="text-center text-muted py-4">No hay liquidación capturada para esta quincena. <a href="{{ route('liquidaciones.create') }}">Registrar ahora</a>.</td></tr>
-                        @endforelse
-                    </tbody>
-                    @if ($liquidaciones->isNotEmpty())
-                        <tfoot>
-                            <tr class="table-light fw-bold">
-                                <td colspan="3">TOTALES</td>
-                                <td class="text-end">${{ number_format($totalesCaptura['cobrar'], 2) }}</td>
-                                <td class="text-end">${{ number_format($totalesCaptura['poner'], 2) }}</td>
-                                <td class="text-end">${{ number_format($totalesCaptura['depositar'], 2) }}</td>
-                                <td class="text-end">${{ number_format($totalesCaptura['ganancias'], 2) }}</td>
-                            </tr>
-                        </tfoot>
-                    @endif
-                </table>
-            </div>
-        </div>
-    </div>
+<div id="liquidacionContenido">
+    @include('liquidaciones._contenido')
 </div>
 
 @push('scripts')
 <script>
-    new Chart(document.getElementById('chartSaldoFinanciera'), {
-        type: 'doughnut',
-        data: {
-            labels: [@foreach ($saldoPorFinanciera as $f) '{{ $f->nombre }}', @endforeach],
-            datasets: [{
-                data: [@foreach ($saldoPorFinanciera as $f) {{ $f->saldo ?? 0 }}, @endforeach],
-                backgroundColor: ['#4f7cff', '#8b6bff', '#ff9f43', '#2bc48a', '#ff5c72'],
-                borderWidth: 0,
-            }]
-        },
-        options: { cutout: '68%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+(function () {
+    var wrap = document.getElementById('liquidacionContenido');
+    var selPeriodo = document.getElementById('liquidacionPeriodo');
+    var periodoLabel = document.getElementById('liquidacionPeriodoLabel');
+    var baseUrl = '{{ route('liquidaciones.index') }}';
+    // Filas por página elegidas en esta visita; cambiar de quincena o de
+    // página las conserva.
+    var porPagina = '{{ $porPagina }}';
+    var chart = null;
+
+    // Un solo gráfico reutilizable: cada recarga destruye la instancia
+    // anterior antes de crear una nueva contra el <canvas> fresco que trae
+    // el HTML recién insertado (Chart.js no permite reusar un canvas que
+    // ya tiene una gráfica activa).
+    function renderChart() {
+        var canvas = document.getElementById('chartSaldoFinanciera');
+        if (!canvas) return;
+        var payload = JSON.parse(canvas.dataset.chart || '{"labels":[],"data":[]}');
+        if (chart) chart.destroy();
+        chart = new Chart(canvas, {
+            type: 'doughnut',
+            data: {
+                labels: payload.labels,
+                datasets: [{
+                    data: payload.data,
+                    backgroundColor: ['#4f7cff', '#8b6bff', '#ff9f43', '#2bc48a', '#ff5c72'],
+                    borderWidth: 0,
+                }]
+            },
+            options: { cutout: '68%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } }
+        });
+    }
+
+    function reload(page) {
+        var params = new URLSearchParams();
+        params.set('periodo', selPeriodo.value);
+        if (porPagina !== '{{ \App\Support\PorPagina::DEFECTO }}') params.set('por_pagina', porPagina);
+        if (page) params.set('page', page);
+
+        fetch(baseUrl + '?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                wrap.innerHTML = html;
+                renderChart();
+                history.replaceState(null, '', baseUrl + '?' + params.toString());
+            });
+    }
+
+    var pdfLink = document.getElementById('liquidacionPdfLink');
+    var pdfBaseUrl = pdfLink.href.split('?')[0];
+
+    selPeriodo.addEventListener('change', function () {
+        periodoLabel.textContent = selPeriodo.options[selPeriodo.selectedIndex].text;
+        pdfLink.href = pdfBaseUrl + '?periodo=' + encodeURIComponent(selPeriodo.value);
+        reload();
     });
+
+    wrap.addEventListener('click', function (e) {
+        var opcion = e.target.closest('.dv-por-pagina a');
+        if (opcion) {
+            e.preventDefault();
+            porPagina = opcion.dataset.valor;
+            reload();
+            return;
+        }
+        var link = e.target.closest('.pagination a');
+        if (link) {
+            e.preventDefault();
+            var url = new URL(link.href);
+            reload(url.searchParams.get('page'));
+        }
+    });
+
+    renderChart();
+})();
 </script>
 @endpush
 @endsection

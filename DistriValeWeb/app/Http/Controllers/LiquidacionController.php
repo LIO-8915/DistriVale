@@ -53,6 +53,12 @@ class LiquidacionController extends Controller
         $saldoPorFinanciera = Financiera::withSum(['vales as saldo' => fn ($q) => $q->where('estado', '!=', 'LIQUIDADO')], 'saldo_pendiente')
             ->orderBy('nombre')->get();
 
+        if ($request->ajax()) {
+            return view('liquidaciones._contenido', compact(
+                'financieras', 'matriz', 'totales', 'matrizPaginada', 'porPagina', 'liquidaciones', 'totalesCaptura', 'saldoPorFinanciera'
+            ));
+        }
+
         return view('liquidaciones.index', compact(
             'periodos', 'periodo', 'financieras', 'matriz', 'totales', 'matrizPaginada', 'porPagina',
             'liquidaciones', 'totalesCaptura', 'saldoPorFinanciera'
@@ -106,7 +112,7 @@ class LiquidacionController extends Controller
             ->orderBy('fecha_corte')->get();
 
         $pdf = Pdf::loadView('liquidaciones.pdf', compact('periodo', 'financieras', 'matriz', 'totales', 'liquidaciones'))
-            ->setPaper('a4', 'landscape');
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download('liquidacion-'.str($periodo)->slug().'.pdf');
     }
@@ -121,8 +127,22 @@ class LiquidacionController extends Controller
     {
         $financieras = Financiera::orderBy('nombre')->get();
 
-        $clientes = Cliente::whereHas('vales', fn ($q) => $q->whereIn('estado', ['ACTIVO', 'EN_MORA']))
-            ->with(['vales' => fn ($q) => $q->whereIn('estado', ['ACTIVO', 'EN_MORA'])])
+        // Además de los vales vigentes, entran los que se liquidaron dentro de
+        // esta quincena: su última cuota sí se cobró en el periodo, y sin ellos
+        // los totales dejan de cuadrar con los estados de cuenta.
+        $rango = Quincena::desdeEtiqueta($periodo);
+        $valesDelPeriodo = function ($q) use ($rango) {
+            $q->where(function ($w) use ($rango) {
+                $w->whereIn('estado', ['ACTIVO', 'EN_MORA']);
+                if ($rango) {
+                    $w->orWhere(fn ($l) => $l->where('estado', 'LIQUIDADO')
+                        ->whereBetween('fecha_ultimo_pago', [$rango['inicio']->copy()->startOfDay(), $rango['fin']->copy()->endOfDay()]));
+                }
+            });
+        };
+
+        $clientes = Cliente::whereHas('vales', $valesDelPeriodo)
+            ->with(['vales' => $valesDelPeriodo])
             ->orderBy('nombre_completo')
             ->get();
 
@@ -158,7 +178,10 @@ class LiquidacionController extends Controller
                 }
 
                 $cuota = (float) $vales->sum('cuota_quincenal');
-                $pago = (float) $vales->sum(fn ($v) => $pagosPorVale[$v->id_vale] ?? 0);
+                // Un vale liquidado en el periodo ya tiene registrado su último
+                // pago aunque no haya recibo de por medio (viene del estado de cuenta).
+                $pago = (float) $vales->sum(fn ($v) => $pagosPorVale[$v->id_vale]
+                    ?? ($v->estado === 'LIQUIDADO' ? (float) $v->cuota_quincenal : 0));
                 $saldo = (float) $vales->sum('saldo_pendiente');
 
                 $fila['financieras'][$f->id_financiera] = ['cuota' => $cuota, 'pago' => $pago, 'saldo' => $saldo];

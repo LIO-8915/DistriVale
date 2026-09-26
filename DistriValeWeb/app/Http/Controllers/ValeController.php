@@ -24,6 +24,10 @@ class ValeController extends Controller
 
         $financieras = Financiera::orderBy('nombre')->get();
 
+        if ($request->ajax()) {
+            return view('vales._table', compact('vales', 'porPagina'));
+        }
+
         return view('vales.index', compact('vales', 'financieras', 'porPagina'));
     }
 

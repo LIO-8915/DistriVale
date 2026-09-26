@@ -65,6 +65,13 @@ fn spawn_php_server(webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
         .arg("--host=127.0.0.1")
         .arg(format!("--port={port}"))
         .current_dir(webapp_dir)
+        // El servidor embebido de PHP es de un solo hilo por defecto: una
+        // pantalla como el dashboard dispara varias peticiones a la vez
+        // (CSS, iconos, bootstrap.js, chart.js...) y sin esto algunas se
+        // cortan a medio cargar (ERR_CONNECTION_RESET), dejando por ejemplo
+        // la gráfica sin dibujarse porque Chart.js nunca llegó a definirse.
+        // Varios workers dejan atender peticiones en paralelo.
+        .env("PHP_CLI_SERVER_WORKERS", "8")
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -74,11 +81,33 @@ fn spawn_php_server(webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
     cmd.spawn()
 }
 
+/// Antes esto sólo hacía un `TcpStream::connect` y daba el servidor por
+/// listo en cuanto el socket aceptaba la conexión — pero el socket de PHP
+/// queda escuchando un instante antes de que el propio intérprete esté listo
+/// para atender una petición real. Ganar esa carrera dejaba a la primera
+/// navegación (la única que hace esta ventana) recibiendo una respuesta
+/// vacía o cortada, y como WebView2 no reintenta una navegación de nivel
+/// superior, la ventana se quedaba en blanco para siempre. Ahora se manda un
+/// GET real y sólo se da por listo el servidor cuando responde con una
+/// línea de estado HTTP válida.
 fn wait_for_server(port: u16, timeout: Duration) -> bool {
+    use std::io::{Read, Write};
+
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        if TcpStream::connect(("127.0.0.1", port)).is_ok() {
-            return true;
+        if let Ok(mut stream) = TcpStream::connect(("127.0.0.1", port)) {
+            let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+            let _ = stream.set_write_timeout(Some(Duration::from_secs(2)));
+
+            let request = format!("GET / HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+            if stream.write_all(request.as_bytes()).is_ok() {
+                let mut buf = [0u8; 32];
+                if let Ok(n) = stream.read(&mut buf) {
+                    if buf[..n].starts_with(b"HTTP/") {
+                        return true;
+                    }
+                }
+            }
         }
         std::thread::sleep(Duration::from_millis(200));
     }

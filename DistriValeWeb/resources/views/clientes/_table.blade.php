@@ -1,16 +1,16 @@
-<div class="px-3 pt-3 pb-2 d-flex justify-content-end">
-    @include('partials.por-pagina', ['porPagina' => $porPagina])
-</div>
+@include('partials.tabla-controles', ['paginador' => $clientes, 'porPagina' => $porPagina])
 <div class="table-responsive">
+    {{-- Columnas que se ocultan al angostar la ventana, en este orden:
+         Teléfono (<1200px), # Vales (<992px), Estado (<768px). --}}
     <table class="table align-middle mb-0">
         <thead>
             <tr>
-                <th>Nombre</th>
-                <th>Teléfono</th>
+                <th class="dv-col-cliente">Nombre</th>
+                <th class="d-none d-xl-table-cell">Teléfono</th>
                 <th>Financiera</th>
-                <th># Vales</th>
+                <th class="d-none d-lg-table-cell"># Vales</th>
                 <th>Saldo global</th>
-                <th>Estado</th>
+                <th class="d-none d-md-table-cell">Estado</th>
                 <th class="text-end">Acciones</th>
             </tr>
         </thead>
@@ -18,15 +18,15 @@
             @forelse ($clientes as $cliente)
                 <tr>
                     <td>
-                        <a href="{{ route('clientes.show', $cliente) }}" class="fw-semibold text-decoration-none">
+                        <a href="{{ route('clientes.show', $cliente) }}" class="fw-semibold text-decoration-none dv-nombre-cliente" title="{{ $cliente->nombre_completo }}">
                             {{ $cliente->nombre_completo }}
                         </a>
                     </td>
-                    <td>{{ $cliente->telefono ?: '—' }}</td>
+                    <td class="d-none d-xl-table-cell">{{ $cliente->telefono ?: '—' }}</td>
                     <td>{{ $cliente->financierasNombres() }}</td>
-                    <td>{{ $cliente->vales_count }}</td>
+                    <td class="d-none d-lg-table-cell">{{ $cliente->vales_count }}</td>
                     <td>${{ number_format($cliente->saldoTotal(), 2) }}</td>
-                    <td>
+                    <td class="d-none d-md-table-cell">
                         <span class="badge {{ $cliente->activo ? 'bg-success' : 'bg-secondary' }}">
                             {{ $cliente->activo ? 'Activo' : 'Inactivo' }}
                         </span>
@@ -46,5 +46,3 @@
         </tbody>
     </table>
 </div>
-
-<div class="mt-3 px-3 pb-2 dv-pagination">{{ $clientes->links() }}</div>
