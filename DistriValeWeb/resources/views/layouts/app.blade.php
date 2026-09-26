@@ -446,6 +446,13 @@
             box-shadow: 0 4px 10px rgba(30, 41, 59, .1), inset 0 1px 1px rgba(255, 255, 255, .6);
         }
 
+        /* Dona de "Avance de quincena": width:100% (no solo max-width) para
+           que siempre se ajuste al ancho real de la tarjeta — con solo
+           max-width, cuando la tarjeta se angostaba (comparte fila con
+           Actividad reciente y Accesos rápidos) el círculo se quedaba con
+           su tamaño de antes, tocando o saliéndose de los bordes. */
+        .dv-avance-donut-wrap { width: 100%; max-width: 210px; }
+        .dv-avance-item .fw-semibold { display: block; text-align: right; }
         .table { margin-bottom: 0; }
         .table thead th {
             font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;

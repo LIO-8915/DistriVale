@@ -69,7 +69,7 @@
     <div class="col-lg-3">
         <div class="card p-3 h-100">
             <h6 class="mb-3">Avance de quincena</h6>
-            <div class="position-relative mx-auto" style="max-width: 210px;">
+            <div class="position-relative mx-auto dv-avance-donut-wrap">
                 <canvas id="chartAvance"></canvas>
                 <div class="position-absolute top-50 start-50 translate-middle text-center">
                     <div class="fw-bold fs-4">{{ $avanceQuincena['pct_cobrado'] }}%</div>
@@ -77,21 +77,32 @@
                 </div>
             </div>
             <div class="text-center text-muted small mt-2">de ${{ number_format($avanceQuincena['total'], 2) }} programado esta quincena</div>
+            {{-- Punto + nombre y porcentaje van en la misma línea; si el
+                 nombre es largo y no caben junto con el porcentaje, este
+                 baja solo (flex-wrap) a su propia línea — así un nombre
+                 largo termina en 3 líneas (nombre, porcentaje, saldo) sin
+                 necesidad de detectarlo aparte. El saldo siempre va debajo. --}}
             <div class="d-flex flex-column gap-2 mt-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span><span style="color:#2bc48a">●</span> Cobrado</span>
-                    <span class="text-muted">{{ $avanceQuincena['pct_cobrado'] }}%</span>
-                    <span class="fw-semibold">${{ number_format($avanceQuincena['cobrado'], 2) }}</span>
+                <div class="dv-avance-item">
+                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
+                        <span><span style="color:#2bc48a">●</span> Cobrado</span>
+                        <span class="text-muted">{{ $avanceQuincena['pct_cobrado'] }}%</span>
+                    </div>
+                    <div class="fw-semibold">${{ number_format($avanceQuincena['cobrado'], 2) }}</div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <span><span style="color:#4f7cff">●</span> Por cobrar</span>
-                    <span class="text-muted">{{ $avanceQuincena['pct_por_cobrar'] }}%</span>
-                    <span class="fw-semibold">${{ number_format($avanceQuincena['por_cobrar'], 2) }}</span>
+                <div class="dv-avance-item">
+                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
+                        <span><span style="color:#4f7cff">●</span> Por cobrar</span>
+                        <span class="text-muted">{{ $avanceQuincena['pct_por_cobrar'] }}%</span>
+                    </div>
+                    <div class="fw-semibold">${{ number_format($avanceQuincena['por_cobrar'], 2) }}</div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <span><span style="color:#ff5c72">●</span> Pendiente</span>
-                    <span class="text-muted">{{ $avanceQuincena['pct_pendiente'] }}%</span>
-                    <span class="fw-semibold">${{ number_format($avanceQuincena['pendiente'], 2) }}</span>
+                <div class="dv-avance-item">
+                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
+                        <span><span style="color:#ff5c72">●</span> Pendiente</span>
+                        <span class="text-muted">{{ $avanceQuincena['pct_pendiente'] }}%</span>
+                    </div>
+                    <div class="fw-semibold">${{ number_format($avanceQuincena['pendiente'], 2) }}</div>
                 </div>
             </div>
         </div>
