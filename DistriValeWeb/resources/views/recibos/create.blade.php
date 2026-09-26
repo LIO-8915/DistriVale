@@ -31,7 +31,7 @@
 
         <div class="d-flex gap-2">
             <button class="btn btn-primary">Generar recibo</button>
-            <a href="{{ route('recibos.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+            <a href="{{ route('recibos.index') }}" class="btn btn-outline-secondary dv-btn-cancelar">Cancelar</a>
         </div>
     </form>
 </div>

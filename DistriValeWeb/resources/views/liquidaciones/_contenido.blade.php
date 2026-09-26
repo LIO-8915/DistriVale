@@ -86,7 +86,7 @@
                         @forelse ($matrizPaginada as $fila)
                             <tr>
                                 <td class="fw-semibold dv-matrix-pin">
-                                    <span class="dv-nombre-cliente" title="{{ $fila['cliente']->nombre_completo }}">{{ $fila['cliente']->nombre_completo }}</span>
+                                    <span class="dv-nombre-cliente-full">{{ $fila['cliente']->nombre_completo }}</span>
                                 </td>
                                 @foreach ($financieras as $f)
                                     @php $d = $fila['financieras'][$f->id_financiera]; @endphp

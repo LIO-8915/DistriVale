@@ -43,7 +43,7 @@
 
         <div class="d-flex gap-2">
             <button class="btn btn-primary">Guardar liquidación</button>
-            <a href="{{ route('liquidaciones.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+            <a href="{{ route('liquidaciones.index') }}" class="btn btn-outline-secondary dv-btn-cancelar">Cancelar</a>
         </div>
     </form>
 </div>

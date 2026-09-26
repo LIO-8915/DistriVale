@@ -63,8 +63,10 @@
     </div>
 </div>
 
+{{-- Ancho suficiente: Avance, Actividad reciente y Accesos rápidos comparten
+     fila. Angosto: se apilan en ese mismo orden. --}}
 <div class="row g-3">
-    <div class="col-lg-5">
+    <div class="col-lg-3">
         <div class="card p-3 h-100">
             <h6 class="mb-3">Avance de quincena</h6>
             <div class="position-relative mx-auto" style="max-width: 210px;">
@@ -95,7 +97,7 @@
         </div>
     </div>
 
-    <div class="col-lg-7">
+    <div class="col-lg-5">
         <div class="card p-3 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0">Actividad reciente</h6>
@@ -122,10 +124,33 @@
             </div>
         </div>
     </div>
+
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h6 class="mb-3">Accesos rápidos</h6>
+            <div class="d-flex flex-column gap-2">
+                <a href="{{ route('clientes.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-blue"><i class="bi bi-person-plus"></i><span>Nuevo cliente</span></a>
+                <a href="{{ route('vales.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-purple"><i class="bi bi-ticket"></i><span>Nuevo vale</span></a>
+                <a href="{{ route('recibos.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-green"><i class="bi bi-receipt"></i><span>Generar recibo</span></a>
+                <a href="{{ route('liquidaciones.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-orange"><i class="bi bi-calculator"></i><span>Registrar liquidación</span></a>
+            </div>
+            @if ($ultimaQuincena)
+                <hr>
+                <div class="small text-muted">Última quincena registrada:</div>
+                <div class="fw-semibold">{{ $ultimaQuincena }}</div>
+                <a href="{{ route('liquidaciones.index', ['periodo' => $ultimaQuincena]) }}" class="small" style="color:#000;">Ver liquidación →</a>
+            @endif
+        </div>
+    </div>
 </div>
 
+{{-- Ancho suficiente: Saldo pendiente y Distribución comparten fila, con
+     más espacio para Distribución (7 de 12). Angosto: se apilan, siempre en
+     ese orden. La gráfica de Distribución siempre es alta (ver
+     #chartFinanciera-wrap): a lo ancho completo se veía demasiado corta
+     para distinguir a las financieras con montos chicos frente a CaptaVale. --}}
 <div class="row g-3 mt-1">
-    <div class="col-lg-7">
+    <div class="col-lg-5">
         <div class="card p-3 h-100">
             <h6 class="mb-3">Saldo pendiente por financiera</h6>
             <table class="table table-sm">
@@ -146,30 +171,12 @@
             </table>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="col-lg-7">
         <div class="card p-3 h-100">
-            <h6 class="mb-3">Accesos rápidos</h6>
-            <div class="d-flex flex-column gap-2">
-                <a href="{{ route('clientes.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-blue"><i class="bi bi-person-plus"></i><span>Nuevo cliente</span></a>
-                <a href="{{ route('vales.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-purple"><i class="bi bi-ticket"></i><span>Nuevo vale</span></a>
-                <a href="{{ route('recibos.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-green"><i class="bi bi-receipt"></i><span>Generar recibo</span></a>
-                <a href="{{ route('liquidaciones.create') }}" class="dv-glass-chip glass-quick-btn glass-fill-orange"><i class="bi bi-calculator"></i><span>Registrar liquidación</span></a>
-            </div>
-            @if ($ultimaQuincena)
-                <hr>
-                <div class="small text-muted">Última quincena registrada:</div>
-                <div class="fw-semibold">{{ $ultimaQuincena }}</div>
-                <a href="{{ route('liquidaciones.index', ['periodo' => $ultimaQuincena]) }}" class="small" style="color:#000;">Ver liquidación →</a>
-            @endif
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mt-1">
-    <div class="col-12">
-        <div class="card p-3">
             <h6 class="mb-3">Distribución de saldo por financiera</h6>
-            <canvas id="chartFinanciera" height="70"></canvas>
+            <div id="chartFinanciera-wrap" style="height: 360px;">
+                <canvas id="chartFinanciera"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -190,6 +197,26 @@
     });
 
     const finCtx = document.getElementById('chartFinanciera');
+    // CaptaVale suele ser varias veces más grande que el resto: en una
+    // escala lineal las financieras chicas quedan como una raya de un par
+    // de píxeles, ilegible aunque la gráfica sea alta. El monto encima de
+    // cada barra la hace legible de todas formas, sin depender de su alto.
+    const valorEncimaBarra = {
+        id: 'valorEncimaBarra',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            chart.getDatasetMeta(0).data.forEach((barra, i) => {
+                const valor = chart.data.datasets[0].data[i];
+                ctx.save();
+                ctx.fillStyle = '#1c2733';
+                ctx.font = '600 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('$' + Math.round(valor).toLocaleString('es-MX'), barra.x, barra.y - 8);
+                ctx.restore();
+            });
+        }
+    };
+
     new Chart(finCtx, {
         type: 'bar',
         data: {
@@ -202,7 +229,11 @@
                 maxBarThickness: 36,
             }]
         },
+        plugins: [valorEncimaBarra],
         options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 24 } },
             plugins: { legend: { display: false } },
             scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' } }, x: { grid: { display: false } } }
         }

@@ -34,21 +34,22 @@
            a rendering path that doesn't hit that bug. */
         #dv-preloader {
             position: fixed; inset: 0; z-index: 9999;
-            background: #05070c; overflow: hidden;
+            background: #03040a; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
         }
         #dv-preloader::before {
             content: ""; position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
             width: min(70vmax, 900px); height: min(70vmax, 900px);
-            background: #2e4d8f; border-radius: 50%; filter: blur(140px); opacity: .65;
+            background: #3558a4; border-radius: 50%; filter: blur(140px); opacity: .65;
         }
         html.dv-ready #dv-preloader { display: none; }
         #dv-preloader .dv-splash { text-align: center; position: relative; z-index: 1; }
+        #dv-preloader .dv-splash-icon-wrap {
+            position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
+        }
         #dv-preloader .dv-splash-icon {
-            display: block; margin: 0 auto 1.15rem;
-            filter: drop-shadow(0 0 16px rgba(79, 124, 255, .45));
-            animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both,
-                       dv-splash-pulse 2.6s ease-in-out .7s infinite;
+            display: block; position: relative; z-index: 1;
+            animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both;
         }
         #dv-preloader .dv-splash-text {
             font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #fff;
@@ -56,10 +57,6 @@
             animation: dv-splash-text-in .6s ease-out .4s forwards;
         }
         @keyframes dv-splash-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
-        @keyframes dv-splash-pulse {
-            0%, 100% { filter: drop-shadow(0 0 14px rgba(79, 124, 255, .42)); }
-            50% { filter: drop-shadow(0 0 28px rgba(122, 162, 255, .75)); }
-        }
         @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
         @media (prefers-reduced-motion: reduce) {
             #dv-preloader .dv-splash-icon { animation: dv-splash-in .3s ease both; }
@@ -92,7 +89,7 @@
            place, not swapped to a skeleton) and centers a Bootstrap spinner
            over it. */
         .dv-nav-slow-spinner {
-            position: fixed; inset: 0; margin-left: var(--dv-sidebar-w);
+            position: fixed; inset: 0; margin-left: calc(var(--dv-sidebar-w) + var(--dv-sidebar-gap) * 2);
             display: none; align-items: center; justify-content: center; z-index: 20;
             pointer-events: none;
             transition: margin-left .2s ease;
@@ -103,6 +100,10 @@
     <style>
         :root {
             --dv-sidebar-w: 232px;
+            /* Hueco a cada lado de la sidebar flotante (izquierda de la
+               ventana y hacia el contenido) — .dv-main descuenta esto dos
+               veces (izquierda + derecha) de su margin-left. */
+            --dv-sidebar-gap: .85rem;
             --dv-navy: #131c2b;
             --dv-navy-soft: #1b2739;
             --dv-accent: #4f7cff;
@@ -121,18 +122,29 @@
 
         body {
             overflow: hidden;
-            background: url('{{ asset('images/fondo-app.png') }}') center / cover fixed, #0c4660;
+            background: url('{{ asset('images/fondo-app.jpg') }}') center / cover fixed, #0c4660;
             color: #000;
         }
 
         .dv-titlebar { -webkit-app-region: drag; height: 6px; }
 
-        /* Sidebar */
+        /* Sidebar: flotante y traslúcida como el resto del cristal de la
+           app — conserva el tono navy de antes, pero como tinte semi-
+           transparente con blur en vez de sólido. Blur MODERADO a propósito
+           (no 28-30px como el topbar): esta superficie está siempre visible
+           en toda la app, no solo en una tarjeta puntual, y ya tuvimos un
+           cuelgue real de WebView2 por demasiadas capas de backdrop-filter
+           encendidas todo el tiempo (ver los botones de "Accesos rápidos"
+           del Inicio) — si vuelve a pasar, este es el primer sospechoso. */
         .dv-sidebar {
-            position: fixed; top: 0; left: 0; bottom: 0; width: var(--dv-sidebar-w);
-            background: linear-gradient(180deg, var(--dv-navy) 0%, #0c1420 100%);
+            position: fixed; top: .85rem; left: .85rem; bottom: .85rem; width: var(--dv-sidebar-w);
+            background: linear-gradient(180deg, rgba(19, 28, 43, .6) 0%, rgba(9, 15, 26, .7) 100%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: var(--dv-radius);
             color: #aab4c6; padding: 0; overflow-y: auto;
-            box-shadow: 4px 0 24px rgba(0, 0, 0, .12);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, .28), inset 0 1px 1px rgba(255, 255, 255, .06);
             /* z-index por encima de todo lo que vive dentro de #dv-view (el
                topbar sticky va en 5, las .card en 1-2 por su borde de vidrio):
                sin esto, mientras la ventana cruza el punto de quiebre del
@@ -314,8 +326,16 @@
             background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
         }
 
+        /* El botón "Cancelar" de los formularios de Nuevo/Editar vive dentro
+           del cuerpo de la tarjeta, no en #dv-topbar-actions — mismo cristal
+           sutil y transparente para que combine con el resto. */
+        .dv-btn-cancelar {
+            box-shadow: 0 8px 20px rgba(30, 41, 59, .14), inset 0 1px 1px rgba(255, 255, 255, .5);
+            background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
+        }
+
         .dv-main {
-            margin-left: var(--dv-sidebar-w); height: 100vh; overflow-y: auto; overflow-x: hidden;
+            margin-left: calc(var(--dv-sidebar-w) + var(--dv-sidebar-gap) * 2); height: 100vh; overflow-y: auto; overflow-x: hidden;
             padding: 1.5rem clamp(1rem, 1rem + 1.5vw, 1.75rem) 2.5rem;
             transition: margin-left .2s ease;
         }
@@ -410,7 +430,7 @@
            scrolling through the rest — otherwise a scrolled row is just
            numbers with no idea whose they are. */
         .dv-matrix-scroll .dv-matrix-pin {
-            position: sticky; left: 0; z-index: 1; min-width: 150px;
+            position: sticky; left: 0; z-index: 1; min-width: 210px;
             background: rgba(255, 255, 255, .92); box-shadow: 1px 0 0 rgba(20, 30, 50, .1);
         }
         .dv-matrix-scroll thead .dv-matrix-pin { z-index: 2; }
@@ -431,6 +451,10 @@
            horizontal (ya viene envuelta en .table-responsive) en vez de
            apretar el nombre hasta hacerlo ilegible. */
         .dv-col-cliente { min-width: 170px; }
+        /* Variante para la matriz de Liquidación: ahí el nombre nunca se
+           recorta con "…" (la columna ya tiene min-width de sobra para 2
+           líneas balanceadas) — solo balance, sin line-clamp/overflow. */
+        .dv-nombre-cliente-full { text-wrap: balance; line-height: 1.3; display: block; }
 
         /* Pill badges with status dot */
         .badge {
@@ -584,17 +608,19 @@
     <div class="dv-nav-slow-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando…</span></div></div>
     <div id="dv-preloader">
         <div class="dv-splash">
-            <svg class="dv-splash-icon" width="72" height="72" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                <defs>
-                    <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
-                        <stop offset="0" stop-color="#7aa2ff"/>
-                        <stop offset="1" stop-color="#4f7cff"/>
-                    </linearGradient>
-                </defs>
-                <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
-                <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
-                      stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <div class="dv-splash-icon-wrap">
+                <svg class="dv-splash-icon" width="168" height="168" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="dvSplashGrad" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stop-color="#7aa2ff"/>
+                            <stop offset="1" stop-color="#4f7cff"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="32" cy="32" r="27" stroke="url(#dvSplashGrad)" stroke-width="3"/>
+                    <path d="M32 17v30M24.5 23.5c0-3.3 3.4-6 7.5-6s7.5 2.4 7.5 5.4-3.4 4.6-7.5 5.6-7.5 2.6-7.5 5.6S28.4 40 32.5 40s7.5-2.7 7.5-6"
+                          stroke="url(#dvSplashGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
             <div class="dv-splash-text">DistriVale</div>
         </div>
     </div>
