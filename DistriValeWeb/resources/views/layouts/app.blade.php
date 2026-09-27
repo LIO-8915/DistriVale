@@ -350,14 +350,15 @@
         }
 
         /* Todo botón "gris" de Bootstrap (Cancelar, Editar, Ver, Eliminar,
-           Copiar texto, Desconectar, Restaurar...) en cualquier pantalla —
-           mismo cristal que "Quincena actual" (.card): degradado diagonal +
-           blur + borde + sombra, en vez del acento y borde gris planos de
-           Bootstrap. .btn-outline-primary (el botón de "Descargar PDF" y
-           las píldoras de "Mostrar 10/25/50") queda tal cual, sin tocar. */
-        .btn-outline-secondary, .btn-outline-danger,
-        .btn-outline-secondary:hover, .btn-outline-danger:hover,
-        .btn-outline-secondary:focus, .btn-outline-danger:focus {
+           Copiar texto, Desconectar, Restaurar, Devolver cambios de la
+           db...) en cualquier pantalla — mismo cristal que "Quincena
+           actual" (.card): degradado diagonal + blur + borde + sombra, en
+           vez del acento y borde plano de Bootstrap. .btn-outline-primary
+           (el botón de "Descargar PDF" y las píldoras de "Mostrar
+           10/25/50") queda tal cual, sin tocar. */
+        .btn-outline-secondary, .btn-outline-danger, .btn-outline-warning,
+        .btn-outline-secondary:hover, .btn-outline-danger:hover, .btn-outline-warning:hover,
+        .btn-outline-secondary:focus, .btn-outline-danger:focus, .btn-outline-warning:focus {
             background: linear-gradient(135deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .22) 55%, rgba(255, 255, 255, .38) 100%);
             border: 1px solid rgba(255, 255, 255, .5);
             -webkit-backdrop-filter: blur(20px) saturate(200%);
@@ -366,6 +367,11 @@
         }
         .btn-outline-secondary, .btn-outline-secondary:hover, .btn-outline-secondary:focus { color: #1c2733; }
         .btn-outline-danger:hover, .btn-outline-danger:focus { color: #dc3545; filter: brightness(1.05); }
+        /* Bootstrap's default warning yellow (#ffc107) reads poorly on a
+           light glass background — usa el mismo naranja que ya identifica
+           "en mora"/advertencia en el resto de la app. */
+        .btn-outline-warning, .btn-outline-warning:hover, .btn-outline-warning:focus { color: #c97316; }
+        .btn-outline-warning:hover, .btn-outline-warning:focus { filter: brightness(1.05); }
 
         /* Modal de confirmación (reemplaza confirm() nativo): mismo cristal
            que .card, un poco más opaco porque se lee encima de contenido
