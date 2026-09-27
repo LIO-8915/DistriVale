@@ -14,7 +14,8 @@
     var modalEl = document.getElementById('dvConfirmModal');
     var messageEl = document.getElementById('dvConfirmMessage');
     var acceptBtn = document.getElementById('dvConfirmAccept');
-    if (!modalEl || !messageEl || !acceptBtn) return;
+    var cancelBtn = document.getElementById('dvConfirmCancel');
+    if (!modalEl || !messageEl || !acceptBtn || !cancelBtn) return;
 
     var modal = new bootstrap.Modal(modalEl);
     var pendingForm = null;
@@ -28,7 +29,19 @@
         modal.show();
     });
 
-    acceptBtn.addEventListener('click', function () {
+    // Nada de data-bs-dismiss="modal" en los botones: eso cierra el modal
+    // en el mismo instante del clic, y el squash de "Liquid Glass press
+    // feedback" (.btn:active) apenas alcanza a empezar antes de que todo
+    // se desvanezca — se sentía como si el botón no reaccionara. Este
+    // pequeño respiro deja que el squash se vea antes de que el modal
+    // arranque su propio fundido.
+    function conFeedback(accion) {
+        return function () {
+            setTimeout(accion, 140);
+        };
+    }
+
+    acceptBtn.addEventListener('click', conFeedback(function () {
         modal.hide();
         if (pendingForm) {
             // .submit() no dispara el evento 'submit' (a diferencia de un
@@ -37,7 +50,11 @@
             pendingForm.submit();
             pendingForm = null;
         }
-    });
+    }));
+
+    cancelBtn.addEventListener('click', conFeedback(function () {
+        modal.hide();
+    }));
 
     modalEl.addEventListener('hidden.bs.modal', function () {
         pendingForm = null;

@@ -348,17 +348,24 @@
         #dv-topbar-actions .btn-outline-primary {
             background: rgba(79, 124, 255, .12); border-color: rgba(79, 124, 255, .35);
         }
-        #dv-topbar-actions .btn-outline-secondary {
-            background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
-        }
 
-        /* El botón "Cancelar" de los formularios de Nuevo/Editar vive dentro
-           del cuerpo de la tarjeta, no en #dv-topbar-actions — mismo cristal
-           sutil y transparente para que combine con el resto. */
-        .dv-btn-cancelar {
+        /* Todo botón "gris" de Bootstrap (Cancelar, Editar, Ver, Eliminar,
+           Copiar texto, Desconectar, Restaurar...) en cualquier pantalla —
+           mismo cristal que "Quincena actual" (.card): degradado diagonal +
+           blur + borde + sombra, en vez del acento y borde gris planos de
+           Bootstrap. .btn-outline-primary (el botón de "Descargar PDF" y
+           las píldoras de "Mostrar 10/25/50") queda tal cual, sin tocar. */
+        .btn-outline-secondary, .btn-outline-danger,
+        .btn-outline-secondary:hover, .btn-outline-danger:hover,
+        .btn-outline-secondary:focus, .btn-outline-danger:focus {
+            background: linear-gradient(135deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .22) 55%, rgba(255, 255, 255, .38) 100%);
+            border: 1px solid rgba(255, 255, 255, .5);
+            -webkit-backdrop-filter: blur(20px) saturate(200%);
+            backdrop-filter: blur(20px) saturate(200%);
             box-shadow: 0 8px 20px rgba(30, 41, 59, .14), inset 0 1px 1px rgba(255, 255, 255, .5);
-            background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
         }
+        .btn-outline-secondary, .btn-outline-secondary:hover, .btn-outline-secondary:focus { color: #1c2733; }
+        .btn-outline-danger:hover, .btn-outline-danger:focus { color: #dc3545; filter: brightness(1.05); }
 
         /* Modal de confirmación (reemplaza confirm() nativo): mismo cristal
            que .card, un poco más opaco porque se lee encima de contenido
@@ -566,16 +573,22 @@
         .btn-sm { font-size: .92rem; padding: .5rem .9rem; }
         .table td.text-center.text-muted { font-size: 1.05rem; padding: 2.5rem 1rem; }
 
-        /* Liquid Glass press feedback, app-wide on every Bootstrap button:
-           compress + round off further while held (physical deformation),
-           darken a touch (keeps label legible against the press state), then
-           spring back past their resting size on release via the overshoot
-           easing — reads as a soft bounce rather than a linear snap. */
+        /* Liquid Glass press feedback, app-wide en TODO botón — incluidos los
+           de los modales (Aceptar/Cancelar): exactamente la misma reacción
+           que .dv-glass-chip (la campana, el avatar, "Quincena actual"): un
+           ligero achatado no uniforme (las formas redondas se deforman en
+           vez de encogerse parejo) más un blur/saturación más profundos y un
+           toque de oscurecido, con un rebote de vuelta al soltar vía la
+           curva con overshoot de abajo. */
         .btn {
             transition: transform .32s var(--dv-spring), border-radius .32s var(--dv-spring),
-                        filter .15s ease, box-shadow .15s ease, background-color .15s ease;
+                        filter .15s ease, box-shadow .15s ease, background-color .15s ease,
+                        -webkit-backdrop-filter .2s ease, backdrop-filter .2s ease;
         }
-        .btn:active { transform: scale(.96); filter: brightness(.92); }
+        .btn:active {
+            transform: scale(.94, .9); filter: brightness(.92);
+            -webkit-backdrop-filter: blur(24px) saturate(230%); backdrop-filter: blur(24px) saturate(230%);
+        }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--dv-accent), #6f9bff); border: none;
@@ -828,7 +841,7 @@
                     <p class="mb-0" id="dvConfirmMessage"></p>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-outline-secondary dv-btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-outline-secondary dv-btn-cancelar" id="dvConfirmCancel">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="dvConfirmAccept">Aceptar</button>
                 </div>
             </div>
