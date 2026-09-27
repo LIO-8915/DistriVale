@@ -41,7 +41,7 @@ class GoogleDriveController extends Controller
     public function connect(Request $request)
     {
         if (! $this->drive->isConfigured()) {
-            return back()->with('error', 'Faltan las credenciales de Google Drive. Configurá GOOGLE_DRIVE_CLIENT_ID y GOOGLE_DRIVE_CLIENT_SECRET en .env (ver ARQUITECTURA_TAURI.md).');
+            return back()->with('error', 'Faltan las credenciales de Google Drive. Configura GOOGLE_DRIVE_CLIENT_ID y GOOGLE_DRIVE_CLIENT_SECRET en .env (ver ARQUITECTURA_TAURI.md).');
         }
 
         $verifier = Str::random(64);
@@ -59,7 +59,7 @@ class GoogleDriveController extends Controller
         // en vez de navegar la propia ventana de la app hacia esa URL.
         $this->openInSystemBrowser($authUrl);
 
-        return back()->with('success', 'Se abrió tu navegador para autorizar el acceso a Google Drive. Volvé a esta pantalla cuando termines.');
+        return back()->with('success', 'Se abrió tu navegador para autorizar el acceso a Google Drive. Vuelve a esta pantalla cuando termines.');
     }
 
     public function callback(Request $request)
@@ -68,11 +68,11 @@ class GoogleDriveController extends Controller
         $verifier = $request->session()->pull('google_drive_pkce_verifier');
 
         if ($request->get('error')) {
-            return $this->callbackPage('No se autorizó el acceso ('.$request->get('error').'). Podés cerrar esta pestaña.');
+            return $this->callbackPage('No se autorizó el acceso ('.$request->get('error').'). Puedes cerrar esta pestaña.');
         }
 
         if (! $verifier || ! $sessionState || $request->get('state') !== $sessionState) {
-            return $this->callbackPage('La solicitud de autorización no es válida o expiró. Cerrá esta pestaña y probá conectar de nuevo desde la app.');
+            return $this->callbackPage('La solicitud de autorización no es válida o expiró. Cierra esta pestaña y prueba conectar de nuevo desde la app.');
         }
 
         try {
@@ -83,7 +83,7 @@ class GoogleDriveController extends Controller
             return $this->callbackPage('Algo salió mal conectando con Google Drive: '.$e->getMessage());
         }
 
-        return $this->callbackPage('¡Listo! Ya podés cerrar esta pestaña y volver a DistriVale.', success: true);
+        return $this->callbackPage('¡Listo! Ya puedes cerrar esta pestaña y volver a DistriVale.', success: true);
     }
 
     public function disconnect()
@@ -96,7 +96,7 @@ class GoogleDriveController extends Controller
     public function backup()
     {
         if (! GoogleDriveToken::current()) {
-            return back()->with('error', 'Conectá primero una cuenta de Google Drive.');
+            return back()->with('error', 'Conecta primero una cuenta de Google Drive.');
         }
 
         $tmpDir = storage_path('app/tmp');
@@ -124,7 +124,7 @@ class GoogleDriveController extends Controller
     public function restore()
     {
         if (! GoogleDriveToken::current()) {
-            return back()->with('error', 'Conectá primero una cuenta de Google Drive.');
+            return back()->with('error', 'Conecta primero una cuenta de Google Drive.');
         }
 
         $dbPath = database_path('database.sqlite');
@@ -151,7 +151,7 @@ class GoogleDriveController extends Controller
             DB::disconnect();
             rename($downloadPath, $dbPath);
 
-            return back()->with('success', 'Base de datos restaurada desde Google Drive. Si no era lo que esperabas, usá "Devolver cambios".');
+            return back()->with('success', 'Base de datos restaurada desde Google Drive. Si no era lo que esperabas, usa "Devolver cambios".');
         } catch (\Throwable $e) {
             Log::error('Restauración desde Google Drive falló', ['error' => $e->getMessage()]);
             @unlink($downloadPath);

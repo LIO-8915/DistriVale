@@ -83,8 +83,8 @@ class GoogleDriveService
         if (empty($data['refresh_token'])) {
             throw new RuntimeException(
                 'Google no devolvió un refresh_token. Probablemente esta cuenta ya había '.
-                'autorizado la app antes de un modo que no lo pide de nuevo; revocá el acceso '.
-                'desde myaccount.google.com/permissions e intentá conectar otra vez.'
+                'autorizado la app antes de un modo que no lo pide de nuevo; revoca el acceso '.
+                'desde myaccount.google.com/permissions e intenta conectar otra vez.'
             );
         }
 

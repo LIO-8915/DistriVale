@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Respaldo')
-@section('subtitle', 'Guardá y traé la base de datos desde tu Google Drive.')
+@section('subtitle', 'Guarda y trae la base de datos desde tu Google Drive.')
 
 @section('content')
 
@@ -85,7 +85,7 @@
                     <p class="text-muted mb-0">
                         Se restauró la base desde Drive
                         {{ \Illuminate\Support\Carbon::parse($rollbackMeta['restored_at'])->diffForHumans() }}.
-                        Si no era lo que esperabas, podés volver a como estaba antes.
+                        Si no era lo que esperabas, puedes volver a como estaba antes.
                     </p>
                 </div>
                 <form method="POST" action="{{ route('drive.rollback') }}"
