@@ -164,7 +164,12 @@
     <div class="col-lg-5">
         <div class="card p-3 h-100">
             <h6 class="mb-3">Saldo pendiente por financiera</h6>
-            <table class="table table-sm">
+            {{-- Sin .table-responsive esta tabla no tenía scroll propio: al
+                 angostar la ventana la columna de saldo se cortaba contra el
+                 borde redondeado de la tarjeta (que recorta con
+                 overflow:hidden) en vez de poder desplazarse. --}}
+            <div class="table-responsive">
+            <table class="table table-sm mb-0">
                 <thead>
                     <tr><th>Financiera</th><th># Vales</th><th class="text-end">Saldo pendiente</th></tr>
                 </thead>
@@ -180,6 +185,7 @@
                     @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
     <div class="col-lg-7">
@@ -194,20 +200,29 @@
 
 @push('scripts')
 <script>
-    // dv-nav.js reinyecta este script cada vez que se vuelve a Inicio (sin
-    // recargar la página completa), y ambas gráficas usan un <canvas> con
-    // el mismo id de siempre. Si el Chart anterior nunca se destruye,
-    // Chart.js lo sigue teniendo registrado contra ese id y la nueva
-    // instancia falla en silencio (o el navegador va acumulando gráficas
-    // "fantasma" cada vez que se entra y se sale de Inicio) — la tabla de
-    // Distribución por financiera dejaba de dibujarse justo por esto.
-    // Chart.getChart() localiza la instancia previa (si sigue viva) para
-    // destruirla antes de crear la nueva, así siempre queda solo una.
-    [Chart.getChart('chartAvance'), Chart.getChart('chartFinanciera')]
-        .filter(Boolean)
-        .forEach(chart => chart.destroy());
+    // Todo el script va en un IIFE a propósito: dv-nav.js reinyecta este
+    // <script> cada vez que se vuelve a Inicio (clona el nodo y lo vuelve a
+    // insertar, sin recargar la página). Un `const`/`let` declarado suelto
+    // en el script vive en el ámbito léxico GLOBAL de la página, y ese
+    // ámbito no se limpia solo porque el <script> anterior se haya quitado
+    // del DOM — la segunda vez que este bloque se ejecuta, el motor lanza
+    // "Identifier 'finCtx' has already been declared" y aborta TODO el
+    // script en silencio (nunca se ve en pantalla, solo en la consola).
+    // Esa era la causa real de que la gráfica de Distribución por
+    // financiera dejara de dibujarse al volver a Inicio — no era Chart.js
+    // por sí solo. El IIFE le da a esas variables un ámbito de función
+    // nuevo en cada ejecución, así puede volver a correr las veces que
+    // haga falta.
+    (function () {
+        // Ambas gráficas reusan el mismo id de <canvas> en cada carga; si el
+        // Chart anterior no se destruye, Chart.js lo sigue teniendo
+        // registrado contra ese id. Chart.getChart() localiza la instancia
+        // previa (si sigue viva) para destruirla antes de crear la nueva.
+        [Chart.getChart('chartAvance'), Chart.getChart('chartFinanciera')]
+            .filter(Boolean)
+            .forEach(chart => chart.destroy());
 
-    new Chart(document.getElementById('chartAvance'), {
+        new Chart(document.getElementById('chartAvance'), {
         type: 'doughnut',
         data: {
             labels: ['Cobrado', 'Por cobrar', 'Pendiente'],
@@ -262,6 +277,7 @@
             scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' } }, x: { grid: { display: false } } }
         }
     });
+    })();
 </script>
 @endpush
 @endsection

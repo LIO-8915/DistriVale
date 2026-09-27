@@ -37,14 +37,28 @@ fn find_free_port() -> u16 {
         .unwrap_or(8712)
 }
 
-/// Ubica la app Laravel: en un build empaquetado vive junto al ejecutable
-/// como `resources/app`; en desarrollo es la carpeta hermana `DistriValeWeb/`
-/// del repositorio (resuelta vía `CARGO_MANIFEST_DIR` en tiempo de compilación).
+/// Ubica la app Laravel probando, en orden: (1) un build empaquetado de
+/// verdad, donde vive junto al ejecutable como `resources/app` (pendiente:
+/// sidecar de PHP portable, ver ARQUITECTURA_TAURI.md §5); (2) una copia
+/// portable — el .exe con una carpeta `DistriValeWeb/` hermana, sin importar
+/// en qué carpeta se haya copiado el par — resuelta en tiempo de EJECUCIÓN
+/// vía `current_exe()`, a diferencia de (3); (3) la carpeta hermana del
+/// repositorio en desarrollo, resuelta vía `CARGO_MANIFEST_DIR` en tiempo de
+/// COMPILACIÓN — solo funciona en esta máquina, en esta ruta exacta.
 fn resolve_webapp_dir(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(resource_dir) = app.path().resource_dir() {
         let packaged = resource_dir.join("app");
         if packaged.join("artisan").exists() {
             return Some(packaged);
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let portable = exe_dir.join("DistriValeWeb");
+            if portable.join("artisan").exists() {
+                return Some(portable);
+            }
         }
     }
 

@@ -44,8 +44,14 @@
         }
         html.dv-ready #dv-preloader { display: none; }
         #dv-preloader .dv-splash { text-align: center; position: relative; z-index: 1; }
+        /* La animación va en este contenedor liso, no en .dv-splash-badge
+           (el círculo con degradado+sombra): WebView2 recortaba mal ese
+           círculo a mitad de la transformación (se veía con la parte de
+           arriba plana en vez de redonda) cuando el elemento animado
+           también tenía border-radius+gradient+box-shadow. */
         #dv-preloader .dv-splash-icon-wrap {
             position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
+            animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both;
         }
         /* Mismo distintivo que el resto de la app (ícono del sidebar, ícono
            de la app de Windows): círculo con el degradado de marca y el
@@ -55,7 +61,6 @@
             background: linear-gradient(135deg, #4f7cff, #7aa2ff);
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 10px 30px rgba(79, 124, 255, .45);
-            animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both;
         }
         #dv-preloader .dv-splash-icon { display: block; width: 62%; height: 62%; }
         #dv-preloader .dv-splash-text {
@@ -66,7 +71,7 @@
         @keyframes dv-splash-in { from { opacity: 0; transform: scale(.78); } to { opacity: 1; transform: scale(1); } }
         @keyframes dv-splash-text-in { from { opacity: 0; transform: translateY(8px); } to { opacity: .92; transform: translateY(0); } }
         @media (prefers-reduced-motion: reduce) {
-            #dv-preloader .dv-splash-badge { animation: dv-splash-in .3s ease both; }
+            #dv-preloader .dv-splash-icon-wrap { animation: dv-splash-in .3s ease both; }
         }
 
         /* Slim top progress bar shown while dv-nav.js fetches a screen. */
@@ -268,17 +273,31 @@
             filter: brightness(.92);
             box-shadow: 0 4px 10px rgba(30, 41, 59, .22), inset 0 1px 1px rgba(255, 255, 255, .5);
         }
-        .glass-fill-blue { background: linear-gradient(135deg, rgba(79, 124, 255, .88), rgba(122, 162, 255, .88)); }
+        /* Avatar: mismo tono azul de siempre, solo un poco más traslúcido
+           (de .88 a .75) para que combine con el resto del cristal en vez
+           de leerse como un relleno sólido. */
+        .glass-fill-blue { background: linear-gradient(135deg, rgba(79, 124, 255, .75), rgba(122, 162, 255, .75)); }
         .glass-fill-purple { background: linear-gradient(135deg, rgba(139, 107, 255, .88), rgba(169, 139, 255, .88)); }
         .glass-fill-orange { background: linear-gradient(135deg, rgba(255, 159, 67, .88), rgba(255, 185, 118, .88)); }
         .glass-fill-green { background: linear-gradient(135deg, rgba(43, 196, 138, .88), rgba(87, 217, 165, .88)); }
 
+        /* Mismo blur que las tarjetas (30px) en vez del blur más ligero
+           genérico de .dv-glass-chip (18px), para que el avatar y la
+           campana se sientan igual de "cristal" que la píldora de
+           "Quincena actual". */
         .dv-avatar-glass, .dv-bell-glass {
             width: 46px; height: 46px; border-radius: 23px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
+            -webkit-backdrop-filter: blur(30px) saturate(220%);
+            backdrop-filter: blur(30px) saturate(220%);
         }
         .dv-avatar-glass .dv-avatar-inner { color: #fff; font-weight: 700; font-size: 1rem; }
-        .dv-bell-glass { cursor: pointer; padding: 0; background: rgba(255, 255, 255, .55); appearance: none; font: inherit; }
+        /* Mismo degradado diagonal que .card / "Quincena actual" en vez del
+           relleno plano que tenía antes (se veía sólido, no como vidrio). */
+        .dv-bell-glass {
+            cursor: pointer; padding: 0; appearance: none; font: inherit;
+            background: linear-gradient(135deg, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .22) 55%, rgba(255, 255, 255, .38) 100%);
+        }
         .dv-bell-glass .dv-bell-inner { color: #33415a; font-size: 1.15rem; position: relative; }
         .dv-bell-glass .dv-bell-inner.has-alerts::after {
             content: ""; position: absolute; top: -3px; right: -4px; width: 8px; height: 8px;
@@ -704,7 +723,7 @@
                     <span class="dv-bell-inner{{ $vencimientos->count() > 0 ? ' has-alerts' : '' }}"><i class="bi bi-bell"></i></span>
                 </button>
                 <div class="dv-user">
-                    <div class="dv-glass-chip dv-avatar-glass glass-fill-blue">
+                    <div class="dv-glass-chip dv-avatar-glass glass-fill-blue" title="Elia Véliz — Administradora" data-bs-toggle="tooltip" data-bs-placement="bottom">
                         <span class="dv-avatar-inner">EV</span>
                     </div>
                     <div class="dv-user-text">
