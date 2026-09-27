@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DistriVale</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    background: #f5f7fb; color: #1c2733; line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+  header { display: flex; align-items: center; gap: .6rem; margin-bottom: 2rem; }
+  .badge {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #4f7cff, #7aa2ff);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 1.1rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0; }
+  p { margin: 0 0 1rem; }
+  .card {
+    background: #fff; border: 1px solid #e4e9f2; border-radius: 14px;
+    padding: 1.5rem; margin-bottom: 1rem;
+  }
+  a { color: #4f7cff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  footer { margin-top: 2rem; font-size: .85rem; color: #6b7788; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0b0e14; color: #e6e9f0; }
+    .card { background: #131722; border-color: #232a3a; }
+    footer { color: #8b96ab; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">D</span>
+      <h1>DistriVale</h1>
+    </header>
+
+    <div class="card">
+      <p>DistriVale es una aplicación de escritorio de uso interno para administrar clientes, créditos, cobranza y liquidaciones de un negocio de préstamos. No es un producto público ni una app que se distribuya a través de tiendas de aplicaciones: la usa un único negocio para su propia operación diaria.</p>
+      <p>DistriVale incluye una función opcional de respaldo que sube y descarga una copia de su base de datos local a una carpeta propia dentro de la cuenta de Google Drive del negocio, únicamente cuando el usuario lo solicita.</p>
+    </div>
+
+    <p>
+      <a href="privacy.html">Política de Privacidad</a> ·
+      <a href="terms.html">Términos de Servicio</a>
+    </p>
+
+    <footer>DistriVale — herramienta interna de gestión de préstamos.</footer>
+  </div>
+</body>
+</html>

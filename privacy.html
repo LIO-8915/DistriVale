@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidad — DistriVale</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    background: #f5f7fb; color: #1c2733; line-height: 1.65;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+  a { color: #4f7cff; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  .updated { color: #6b7788; font-size: .9rem; margin-bottom: 2rem; }
+  ul { padding-left: 1.2rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0b0e14; color: #e6e9f0; }
+    .updated { color: #8b96ab; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Política de Privacidad de DistriVale</h1>
+    <p class="updated">Última actualización: 27 de septiembre de 2026</p>
+
+    <p>DistriVale es una aplicación de escritorio de uso interno, usada por un único negocio para administrar sus propios clientes, créditos y cobranzas. Esta política explica qué información maneja la app y, en particular, cómo usa el acceso a Google Drive.</p>
+
+    <h2>1. Qué información se recopila</h2>
+    <p>DistriVale guarda localmente, en el equipo donde está instalada, los datos que el propio negocio ingresa: clientes, créditos, pagos y financieras. Esta información nunca se envía a servidores de terceros, salvo la copia de respaldo descrita a continuación, y solo cuando el usuario la solicita explícitamente.</p>
+
+    <h2>2. Uso de Google Drive</h2>
+    <p>DistriVale ofrece una función opcional de "Respaldo" que permite subir y descargar una copia de la base de datos local a Google Drive. Para esto usa el permiso (scope) <code>drive.file</code> de Google, que es el más restringido que ofrece la API de Drive:</p>
+    <ul>
+      <li>La app únicamente puede ver y modificar los archivos que ella misma crea en una carpeta propia ("DistriVale - Respaldos") dentro del Drive del usuario.</li>
+      <li>No tiene acceso a ningún otro archivo o carpeta del Drive del usuario.</li>
+      <li>También solicita el correo electrónico de la cuenta conectada, únicamente para mostrarlo en la pantalla de "Respaldo" y confirmar qué cuenta está vinculada.</li>
+    </ul>
+    <p>Esta función solo se activa cuando el usuario presiona "Conectar con Google Drive", "Respaldar ahora" o "Restaurar" — no hay sincronización automática ni en segundo plano.</p>
+
+    <h2>3. Almacenamiento y seguridad</h2>
+    <p>Las credenciales de acceso a Google (tokens de autenticación) se guardan cifradas en la base de datos local de la app. No se comparten con ningún tercero ni se usan para ningún fin distinto al de subir o descargar el respaldo descrito arriba.</p>
+
+    <h2>4. No se comparte con terceros</h2>
+    <p>DistriVale no vende, alquila ni comparte los datos del negocio ni de sus clientes con terceros. Toda la información permanece en el equipo del negocio y, opcionalmente, en la propia cuenta de Google Drive del negocio.</p>
+
+    <h2>5. Derechos del usuario</h2>
+    <p>El usuario puede desconectar su cuenta de Google Drive en cualquier momento desde la pantalla de "Respaldo", lo que revoca el acceso otorgado a la app. También puede revocar el acceso directamente desde <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.</p>
+
+    <h2>6. Cambios a esta política</h2>
+    <p>Esta política puede actualizarse si cambia la forma en que DistriVale usa Google Drive. La fecha de "Última actualización" en la parte superior refleja la versión vigente.</p>
+
+    <h2>7. Contacto</h2>
+    <p>Para preguntas sobre esta política, escribe a <a href="mailto:soporte@distrivale.app">soporte@distrivale.app</a>.</p>
+  </div>
+</body>
+</html>
