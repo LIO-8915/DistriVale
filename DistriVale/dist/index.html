@@ -39,28 +39,25 @@
        no un salto de tamaño inmediato. Los porcentajes del keyframe (no un
        solo cubic-bezier) son los que dibujan la deceleración/rebote; la
        función linear de abajo deja esa forma intacta en vez de sumarle
-       otra curva encima.
-       La animación va en este contenedor liso, NO en .dv-splash-badge (el
-       círculo con degradado+sombra): WebView2 recortaba mal ese círculo a
-       mitad de la transformación (se veía con la parte de arriba plana en
-       vez de redonda) cuando el elemento animado también tenía
-       border-radius+gradient+box-shadow. Con el círculo totalmente estático
-       dentro de un envoltorio que solo se mueve/escala, no hay nada que
-       WebView2 tenga que re-recortar mientras se anima. */
+       otra curva encima. La animación va en este contenedor liso, no en la
+       imagen del círculo (ver el comentario junto a .dv-splash-badge). */
     .dv-splash-icon-wrap {
         position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
         animation: dv-splash-sunrise 1.1s linear both;
     }
     /* Mismo distintivo que el resto de la app (ícono del sidebar, ícono de
        la app de Windows): círculo con el degradado de marca y el logo
-       blanco encima, en vez del viejo trazo de línea dibujado a mano. */
+       blanco encima. Iba como dos <div> con border-radius+background
+       dibujado por CSS, pero WebView2 recortaba mal ese círculo (arriba
+       plano, abajo redondo) sin importar cómo se separara el centrado del
+       recorte. La imagen ya trae el círculo horneado en los píxeles (ver
+       composite_badge.html) — así no hay ningún border-radius que el
+       motor tenga que calcular mal, y drop-shadow (sigue la forma real del
+       alfa) reemplaza al box-shadow (seguía el cuadro, no el círculo). */
     .dv-splash-badge {
-        width: 100%; height: 100%; border-radius: 50%;
-        background: linear-gradient(135deg, #4f7cff, #7aa2ff);
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 10px 30px rgba(79, 124, 255, .45);
+        width: 100%; height: 100%;
+        filter: drop-shadow(0 10px 20px rgba(79, 124, 255, .45));
     }
-    .dv-splash-icon { display: block; width: 62%; height: 62%; }
     .dv-splash-text {
         color: #fff; font-weight: 600; font-size: 1rem; letter-spacing: .16em;
         text-transform: uppercase; opacity: 0;
@@ -86,9 +83,7 @@
 <body>
     <div class="dv-splash">
         <div class="dv-splash-icon-wrap">
-            <div class="dv-splash-badge">
-                <img class="dv-splash-icon" src="images/logo-distrivale.png" alt="" aria-hidden="true">
-            </div>
+            <img class="dv-splash-badge" src="images/logo-distrivale-badge.png" alt="" aria-hidden="true">
         </div>
         <div class="dv-splash-text">DistriVale</div>
     </div>

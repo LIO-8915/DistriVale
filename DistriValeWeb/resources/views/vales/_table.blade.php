@@ -23,7 +23,7 @@
                     <td><span class="badge badge-estado-{{ $vale->estado }}">{{ $vale->estado }}</span></td>
                     <td class="text-end">
                         <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
-                        <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este vale?')">
+                        <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" data-confirm="¿Eliminar este vale?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                         </form>

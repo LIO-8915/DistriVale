@@ -3,7 +3,7 @@
 @section('title', 'Recibo consolidado')
 @section('actions')
     <button class="btn btn-sm btn-outline-secondary" onclick="copiarRecibo()"><i class="bi bi-clipboard"></i> Copiar texto</button>
-    <form action="{{ route('recibos.confirmar-pago', $recibo) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Confirmar que este recibo fue pagado? Esto actualizará el saldo y la quincena de cada vale.')">
+    <form action="{{ route('recibos.confirmar-pago', $recibo) }}" method="POST" class="d-inline" data-confirm="¿Confirmar que este recibo fue pagado? Esto actualizará el saldo y la quincena de cada vale.">
         @csrf
         <button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Confirmar pago</button>
     </form>

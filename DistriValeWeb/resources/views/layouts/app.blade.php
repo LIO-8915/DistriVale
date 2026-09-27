@@ -44,25 +44,24 @@
         }
         html.dv-ready #dv-preloader { display: none; }
         #dv-preloader .dv-splash { text-align: center; position: relative; z-index: 1; }
-        /* La animación va en este contenedor liso, no en .dv-splash-badge
-           (el círculo con degradado+sombra): WebView2 recortaba mal ese
-           círculo a mitad de la transformación (se veía con la parte de
-           arriba plana en vez de redonda) cuando el elemento animado
-           también tenía border-radius+gradient+box-shadow. */
         #dv-preloader .dv-splash-icon-wrap {
             position: relative; width: 168px; height: 168px; margin: 0 auto 1.15rem;
             animation: dv-splash-in .7s cubic-bezier(.34, 1.4, .64, 1) both;
         }
         /* Mismo distintivo que el resto de la app (ícono del sidebar, ícono
            de la app de Windows): círculo con el degradado de marca y el
-           logo blanco encima. */
+           logo blanco encima. Iba como dos <div> con border-radius+
+           background dibujado por CSS, pero WebView2 recortaba mal ese
+           círculo (arriba plano, abajo redondo) sin importar cómo se
+           separara el centrado del recorte. La imagen ya trae el círculo
+           horneado en los píxeles (ver composite_badge.html, en la carpeta
+           de trabajo) — así no hay ningún border-radius que el motor tenga
+           que calcular mal, y drop-shadow (sigue la forma real del alfa)
+           reemplaza al box-shadow (seguía el cuadro, no el círculo). */
         #dv-preloader .dv-splash-badge {
-            width: 100%; height: 100%; border-radius: 50%;
-            background: linear-gradient(135deg, #4f7cff, #7aa2ff);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 10px 30px rgba(79, 124, 255, .45);
+            width: 100%; height: 100%;
+            filter: drop-shadow(0 10px 20px rgba(79, 124, 255, .45));
         }
-        #dv-preloader .dv-splash-icon { display: block; width: 62%; height: 62%; }
         #dv-preloader .dv-splash-text {
             font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #fff;
             font-weight: 600; font-size: 1rem; letter-spacing: .16em; text-transform: uppercase; opacity: 0;
@@ -360,6 +359,30 @@
             box-shadow: 0 8px 20px rgba(30, 41, 59, .14), inset 0 1px 1px rgba(255, 255, 255, .5);
             background: rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .55); color: #1c2733;
         }
+
+        /* Modal de confirmación (reemplaza confirm() nativo): mismo cristal
+           que .card, un poco más opaco porque se lee encima de contenido
+           cualquiera (una tabla, un formulario) en vez de sobre el fondo
+           controlado de la app. */
+        .dv-confirm-modal {
+            border: 1px solid rgba(255, 255, 255, .55);
+            border-radius: var(--dv-radius);
+            background: linear-gradient(135deg, rgba(255, 255, 255, .82) 0%, rgba(255, 255, 255, .55) 55%, rgba(255, 255, 255, .7) 100%);
+            -webkit-backdrop-filter: blur(30px) saturate(220%);
+            backdrop-filter: blur(30px) saturate(220%);
+            box-shadow: 0 20px 44px rgba(30, 41, 59, .28), 0 1px 0 rgba(255, 255, 255, .7) inset;
+            color: #000;
+        }
+        .dv-confirm-modal #dvConfirmMessage { font-size: 1.02rem; }
+        /* El fondo detrás del modal no se oscurece (nada de la capa negra
+           semitransparente de Bootstrap) — solo un desenfoque suave, así se
+           sigue leyendo la pantalla de atrás en vez de taparla. */
+        .modal-backdrop {
+            background-color: transparent;
+            -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+        }
+        .modal-backdrop.show { opacity: 1; }
 
         .dv-main {
             margin-left: calc(var(--dv-sidebar-w) + var(--dv-sidebar-gap) * 2); height: 100vh; overflow-y: auto; overflow-x: hidden;
@@ -669,9 +692,7 @@
     <div id="dv-preloader">
         <div class="dv-splash">
             <div class="dv-splash-icon-wrap">
-                <div class="dv-splash-badge">
-                    <img class="dv-splash-icon" src="{{ asset('images/logo-distrivale.png') }}" alt="" aria-hidden="true">
-                </div>
+                <img class="dv-splash-badge" src="{{ asset('images/logo-distrivale-badge.png') }}" alt="" aria-hidden="true">
             </div>
             <div class="dv-splash-text">DistriVale</div>
         </div>
@@ -790,6 +811,30 @@
         </div>
     </div>
 
+    {{-- Confirmación genérica: reemplaza el confirm() nativo del navegador
+         (una ventanita gris sin estilo, con la URL como título) en TODOS los
+         formularios de eliminar/confirmar de la app. Un formulario marca
+         `data-confirm="pregunta"` en vez de `onsubmit="return confirm(...)"`
+         — ver public/js/dv-confirm.js, que intercepta el submit, muestra
+         este modal y solo si se acepta reenvía el formulario original. Un
+         solo modal compartido por toda la app (vive fuera de #dv-view, así
+         que sobrevive a la navegación de dv-nav.js) sirve para cualquier
+         pantalla, incluyendo las que repiten el formulario por fila
+         (Clientes, Vales, Financieras). --}}
+    <div class="modal fade" id="dvConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content dv-confirm-modal">
+                <div class="modal-body pt-4">
+                    <p class="mb-0" id="dvConfirmMessage"></p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary dv-btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="dvConfirmAccept">Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
     {{-- Loaded once here (persistent shell), not per-page: with in-place
          navigation (dv-nav.js) a per-page <script src> would re-fetch and
@@ -810,6 +855,7 @@
     <script src="{{ asset('js/dv-nav.js') }}"></script>
     <script src="{{ asset('js/dv-ui.js') }}"></script>
     <script src="{{ asset('js/dv-searchselect.js') }}"></script>
+    <script src="{{ asset('js/dv-confirm.js') }}"></script>
 
     <script>
         // Reveal gate: the whole page starts hidden behind #dv-preloader (see

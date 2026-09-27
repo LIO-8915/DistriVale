@@ -24,7 +24,7 @@
                 <span class="badge bg-success">Conectado</span>
                 <span>{{ $accountEmail }}</span>
             </div>
-            <form method="POST" action="{{ route('drive.disconnect') }}" onsubmit="return confirm('¿Desconectar esta cuenta de Google Drive? Vas a poder volver a conectarla cuando quieras.');">
+            <form method="POST" action="{{ route('drive.disconnect') }}" data-confirm="¿Desconectar esta cuenta de Google Drive? Vas a poder volver a conectarla cuando quieras.">
                 @csrf
                 <button class="btn btn-outline-danger btn-sm">Desconectar</button>
             </form>
@@ -69,7 +69,7 @@
                     Se guarda una copia de la base actual por si hay que deshacerlo.
                 </p>
                 <form method="POST" action="{{ route('drive.restore') }}"
-                      onsubmit="return confirm('Esto va a reemplazar TODOS los datos locales por el último respaldo de Drive. ¿Continuar?');">
+                      data-confirm="Esto va a reemplazar TODOS los datos locales por el último respaldo de Drive. ¿Continuar?">
                     @csrf
                     <button class="btn btn-outline-primary"><i class="bi bi-cloud-arrow-down me-1"></i> Restaurar</button>
                 </form>
@@ -89,7 +89,7 @@
                     </p>
                 </div>
                 <form method="POST" action="{{ route('drive.rollback') }}"
-                      onsubmit="return confirm('Esto va a reemplazar la base actual por la que había ANTES de la última restauración. Los cambios hechos después de restaurar se van a perder. ¿Continuar?');">
+                      data-confirm="Esto va a reemplazar la base actual por la que había ANTES de la última restauración. Los cambios hechos después de restaurar se van a perder. ¿Continuar?">
                     @csrf
                     <button class="btn btn-outline-warning"><i class="bi bi-arrow-counterclockwise me-1"></i> Devolver cambios de la db</button>
                 </form>
