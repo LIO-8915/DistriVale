@@ -212,4 +212,10 @@
     });
 
     history.replaceState({ dvNav: true }, '', window.location.href);
+
+    // Lets a page's own script (e.g. one polling for a change that happened
+    // outside the WebView, like finishing Google's login in the system
+    // browser) re-fetch and swap the current screen through the same pjax
+    // path a link click would use, instead of a jarring full reload.
+    window.DvNav = { refresh: function () { navigate(window.location.href, false); } };
 })();

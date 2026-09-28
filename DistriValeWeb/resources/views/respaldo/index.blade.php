@@ -19,6 +19,7 @@
 <div class="card p-4 mb-3">
     <h6 class="mb-3">Cuenta de Google Drive</h6>
     @if ($connected)
+        <span id="dv-drive-connected" hidden></span>
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-success">Conectado</span>
@@ -99,3 +100,40 @@
 @endif
 
 @endsection
+
+@unless ($connected)
+    @push('scripts')
+        <script>
+            (function () {
+                // La conexión con Google se completa en el navegador del
+                // sistema, no en este WebView — sin esto, la pantalla se
+                // queda mostrando "no hay ninguna cuenta conectada" hasta
+                // que el usuario navega manualmente a otra pantalla y
+                // vuelve. Se sondea cada 3s si ya quedó conectada y, en ese
+                // caso, se refresca esta misma vista sola.
+                var attempts = 0;
+                var maxAttempts = 200; // ~10 minutos
+                var timer = setInterval(function () {
+                    attempts++;
+                    if (attempts > maxAttempts) {
+                        clearInterval(timer);
+                        return;
+                    }
+                    fetch(window.location.href, { headers: { 'X-DV-Nav': '1' }, credentials: 'same-origin' })
+                        .then(function (res) { return res.text(); })
+                        .then(function (html) {
+                            if (html.indexOf('id="dv-drive-connected"') !== -1) {
+                                clearInterval(timer);
+                                if (window.DvNav) {
+                                    window.DvNav.refresh();
+                                } else {
+                                    window.location.reload();
+                                }
+                            }
+                        })
+                        .catch(function () {});
+                }, 3000);
+            })();
+        </script>
+    @endpush
+@endunless

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\GoogleDriveToken;
 use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -48,10 +49,15 @@ class GoogleDriveController extends Controller
         $state = Str::random(32);
         $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-        $request->session()->put('google_drive_pkce_verifier', $verifier);
-        $request->session()->put('google_drive_oauth_state', $state);
+        // No se guarda en sesión: esta request (POST /drive/conectar) la hace
+        // el WebView embebido de la app, pero Google redirige de vuelta hacia
+        // el navegador del sistema — son dos "navegadores" con cookies
+        // completamente separadas, así que una sesión atada a cookie nunca
+        // sobrevive el viaje. El propio "state" (único, va y vuelve en la URL,
+        // no en una cookie) sirve como clave para recuperar el verifier.
+        Cache::put('google_drive_oauth:'.$state, $verifier, now()->addMinutes(10));
 
-        $redirectUri = route('drive.callback');
+        $redirectUri = 'http://localhost:'.$request->getPort();
         $authUrl = $this->drive->buildAuthUrl($redirectUri, $state, $challenge);
 
         // Google bloquea el login OAuth dentro de un WebView embebido (política
@@ -64,19 +70,19 @@ class GoogleDriveController extends Controller
 
     public function callback(Request $request)
     {
-        $sessionState = $request->session()->pull('google_drive_oauth_state');
-        $verifier = $request->session()->pull('google_drive_pkce_verifier');
-
         if ($request->get('error')) {
             return $this->callbackPage('No se autorizó el acceso ('.$request->get('error').'). Puedes cerrar esta pestaña.');
         }
 
-        if (! $verifier || ! $sessionState || $request->get('state') !== $sessionState) {
+        $state = $request->get('state');
+        $verifier = $state ? Cache::pull('google_drive_oauth:'.$state) : null;
+
+        if (! $verifier) {
             return $this->callbackPage('La solicitud de autorización no es válida o expiró. Cierra esta pestaña y prueba conectar de nuevo desde la app.');
         }
 
         try {
-            $this->drive->handleCallback($request->get('code'), route('drive.callback'), $verifier);
+            $this->drive->handleCallback($request->get('code'), $request->getSchemeAndHttpHost(), $verifier);
         } catch (\Throwable $e) {
             Log::error('Google Drive OAuth callback falló', ['error' => $e->getMessage()]);
 
@@ -259,7 +265,14 @@ class GoogleDriveController extends Controller
     private function openInSystemBrowser(string $url): void
     {
         if (PHP_OS_FAMILY === 'Windows') {
-            pclose(popen('start "" '.escapeshellarg($url), 'r'));
+            // escapeshellarg() en Windows reemplaza cada "%" por un espacio
+            // (para neutralizar la expansión de variables %VAR% de cmd.exe),
+            // lo que corrompe cualquier URL con partes url-encoded (%3A,
+            // %2F...) — exactamente lo que rompía todo el login de Google.
+            // Esta URL la construimos nosotros mismos (nunca es un dato
+            // externo sin confiar) y nunca contiene comillas dobles, así que
+            // alcanza con encerrarla en comillas a mano.
+            pclose(popen('start "" "'.$url.'"', 'r'));
 
             return;
         }
