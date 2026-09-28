@@ -11,6 +11,7 @@
 // y para correr la app como ventana nativa apuntando al PHP del sistema.
 
 mod licensing;
+mod supabase_licensing;
 
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -197,12 +198,140 @@ fn show_startup_error(app: &AppHandle, message: &str) {
     }
 }
 
+/// Arranca `php artisan serve` y navega el WebView ahí — la secuencia
+/// normal de arranque, movida a su propia función porque ahora hay dos
+/// caminos que llegan a ella: el arranque normal (cuenta ya válida) y el
+/// botón "continuar" de la pantalla de activación (cuenta recién
+/// activada).
+fn iniciar_app_principal(app_handle: AppHandle) {
+    let Some(webapp_dir) = resolve_webapp_dir(&app_handle) else {
+        show_startup_error(
+            &app_handle,
+            "No se encontró la aplicación Laravel (DistriValeWeb/artisan).",
+        );
+        return;
+    };
+
+    let port = find_free_port();
+
+    let child = match spawn_php_server(&webapp_dir, port) {
+        Ok(child) => child,
+        Err(e) => {
+            show_startup_error(
+                &app_handle,
+                &format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?"),
+            );
+            return;
+        }
+    };
+
+    if let Some(state) = app_handle.try_state::<PhpServer>() {
+        *state.0.lock().unwrap() = Some(child);
+    }
+
+    if !wait_for_server(port, Duration::from_secs(15)) {
+        show_startup_error(&app_handle, "El servidor de Laravel no respondió a tiempo.");
+        return;
+    }
+
+    let url = format!("http://127.0.0.1:{port}");
+    let navigate_handle = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || {
+        if let (Some(window), Ok(parsed)) =
+            (navigate_handle.get_webview_window("main"), Url::parse(&url))
+        {
+            let _ = window.navigate(parsed);
+        }
+    });
+}
+
+/// Reemplaza la pantalla de carga con un formulario simple de activación
+/// (correo + código de un solo uso) cuando no hay ninguna cuenta local
+/// válida — inyectado directo sobre el splash en vez de navegar a un
+/// archivo aparte, para no tener que lidiar con volver del origen
+/// http://127.0.0.1:<puerto> de vuelta al de los assets empaquetados.
+fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
+    let Some(window) = app.get_webview_window("main") else { return };
+
+    let aviso = mensaje_inicial
+        .map(|m| m.replace('\\', "\\\\").replace('`', "\\`"))
+        .unwrap_or_default();
+
+    let script = format!(
+        r#"
+        document.body.innerHTML = `
+          <div style="font-family:-apple-system,'Segoe UI',Inter,system-ui,sans-serif;color:#e6e9f0;
+                      max-width:380px;margin:3rem auto;padding:0 1.5rem;text-align:center">
+            <h2 style="color:#fff;font-size:1.3rem;margin-bottom:.3rem">Activar DistriVale</h2>
+            <p style="color:#aab4c6;font-size:.9rem;margin-bottom:1.5rem">
+              Ingresa tu correo y el código de activación que te dieron.
+            </p>
+            <div id="dv-activacion-error" style="color:#ff8fa3;font-size:.85rem;min-height:1.2rem;margin-bottom:.5rem"></div>
+            <input id="dv-correo" type="email" placeholder="Correo" autocomplete="email"
+                   style="width:100%;box-sizing:border-box;padding:.6rem .8rem;margin-bottom:.6rem;
+                          border-radius:8px;border:1px solid #2a3040;background:#131722;color:#fff">
+            <input id="dv-codigo" type="text" placeholder="XXXX-XXXX-XXXX" autocomplete="off"
+                   style="width:100%;box-sizing:border-box;padding:.6rem .8rem;margin-bottom:1rem;
+                          border-radius:8px;border:1px solid #2a3040;background:#131722;color:#fff;
+                          text-transform:uppercase;letter-spacing:.05em">
+            <button id="dv-activar-btn"
+                    style="width:100%;padding:.65rem;border:0;border-radius:8px;
+                           background:#4f7cff;color:#fff;font-weight:600;cursor:pointer">
+              Activar
+            </button>
+          </div>`;
+        document.getElementById('dv-activacion-error').textContent = `{aviso}`;
+
+        var btn = document.getElementById('dv-activar-btn');
+        btn.addEventListener('click', function () {{
+          var correo = document.getElementById('dv-correo').value.trim();
+          var codigo = document.getElementById('dv-codigo').value.trim();
+          var err = document.getElementById('dv-activacion-error');
+          err.textContent = '';
+
+          if (!correo || !codigo) {{
+            err.textContent = 'Completa los dos campos.';
+            return;
+          }}
+
+          btn.disabled = true;
+          btn.textContent = 'Activando…';
+
+          window.__TAURI__.core.invoke('activar_cuenta', {{ correo: correo, codigo: codigo }})
+            .then(function () {{
+              return window.__TAURI__.core.invoke('continuar_arranque');
+            }})
+            .catch(function (e) {{
+              err.textContent = typeof e === 'string' ? e : 'No se pudo activar la cuenta.';
+              btn.disabled = false;
+              btn.textContent = 'Activar';
+            }});
+        }});
+        "#
+    );
+    let _ = window.eval(&script);
+}
+
+/// Llamado desde la pantalla de activación (JS) justo después de que
+/// `activar_cuenta` confirma éxito — arranca la secuencia normal de PHP +
+/// navegación, la misma que corre en el arranque cuando ya había una
+/// cuenta válida guardada.
+#[tauri::command]
+async fn continuar_arranque(app: AppHandle) {
+    std::thread::spawn(move || {
+        iniciar_app_principal(app);
+    });
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(PhpServer(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             licensing::activate_license,
             licensing::check_saved_license,
+            supabase_licensing::activar_cuenta,
+            supabase_licensing::check_saved_account,
+            continuar_arranque,
         ])
         .setup(|app| {
             // Construida acá en vez de dejar que tauri.conf.json la cree
@@ -217,49 +346,44 @@ fn main() {
             let app_handle = app.handle().clone();
 
             std::thread::spawn(move || {
-                let Some(webapp_dir) = resolve_webapp_dir(&app_handle) else {
-                    show_startup_error(
-                        &app_handle,
-                        "No se encontró la aplicación Laravel (DistriValeWeb/artisan).",
-                    );
-                    return;
-                };
+                // Le da tiempo al WebView de terminar de cargar el splash
+                // inicial antes de intentar reemplazarlo — sin esto, en el
+                // caso "sin cuenta activada" (que resuelve casi al
+                // instante, sin red) el eval() puede correr contra una
+                // página que todavía no existe y quedarse sin efecto.
+                std::thread::sleep(Duration::from_millis(400));
 
-                let port = find_free_port();
+                let status = tauri::async_runtime::block_on(
+                    supabase_licensing::check_saved_account(app_handle.clone()),
+                );
 
-                let child = match spawn_php_server(&webapp_dir, port) {
-                    Ok(child) => child,
-                    Err(e) => {
-                        show_startup_error(
-                            &app_handle,
-                            &format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?"),
-                        );
-                        return;
-                    }
-                };
+                let valido = matches!(status, Ok(ref s) if s.valid);
 
-                if let Some(state) = app_handle.try_state::<PhpServer>() {
-                    *state.0.lock().unwrap() = Some(child);
+                if valido {
+                    iniciar_app_principal(app_handle);
+                } else {
+                    let motivo = match status {
+                        Ok(s) => match s.reason.as_deref() {
+                            Some("sin_activar") | None => None,
+                            Some("dispositivo_no_activo") | Some("cuenta_no_aprobada") => {
+                                Some("Esta cuenta o este equipo ya no tienen acceso. Contacta al administrador.".to_string())
+                            }
+                            Some("gracia_offline_vencida") => Some(
+                                "Pasó más de una semana sin poder confirmar tu cuenta. Conéctate a internet e intenta de nuevo, o vuelve a activar.".to_string(),
+                            ),
+                            Some("reloj_manipulado") => Some(
+                                "El reloj de este equipo no coincide con el esperado. Conectate a internet para revalidar.".to_string(),
+                            ),
+                            Some(_) => Some("No se pudo confirmar tu cuenta. Intenta de nuevo.".to_string()),
+                        },
+                        Err(_) => Some("No se pudo confirmar tu cuenta. Intenta de nuevo.".to_string()),
+                    };
+
+                    let show_handle = app_handle.clone();
+                    let _ = app_handle.run_on_main_thread(move || {
+                        show_activation_screen(&show_handle, motivo.as_deref());
+                    });
                 }
-
-                if !wait_for_server(port, Duration::from_secs(15)) {
-                    show_startup_error(
-                        &app_handle,
-                        "El servidor de Laravel no respondió a tiempo.",
-                    );
-                    return;
-                }
-
-                let url = format!("http://127.0.0.1:{port}");
-                let navigate_handle = app_handle.clone();
-                let _ = app_handle.run_on_main_thread(move || {
-                    if let (Some(window), Ok(parsed)) = (
-                        navigate_handle.get_webview_window("main"),
-                        Url::parse(&url),
-                    ) {
-                        let _ = window.navigate(parsed);
-                    }
-                });
             });
 
             Ok(())
