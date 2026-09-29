@@ -2,47 +2,50 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Financiera;
+use App\Support\Wireframe\Store;
 use Illuminate\Http\Request;
 
 class FinancieraController extends Controller
 {
     public function index()
     {
-        $financieras = Financiera::withCount('vales')->orderBy('nombre')->get();
+        $financieras = Store::financieras();
 
         return view('financieras.index', compact('financieras'));
     }
 
     public function create()
     {
-        return view('financieras.form', ['financiera' => new Financiera]);
+        return view('financieras.form', ['financiera' => Store::nuevaFinanciera()]);
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        Financiera::create($data);
+        Store::crearFinanciera($data);
 
         return redirect()->route('financieras.index')->with('success', 'Financiera registrada correctamente.');
     }
 
-    public function edit(Financiera $financiera)
+    public function edit($financiera)
     {
+        $financiera = Store::financiera($financiera) ?? abort(404);
+
         return view('financieras.form', compact('financiera'));
     }
 
-    public function update(Request $request, Financiera $financiera)
+    public function update(Request $request, $financiera)
     {
+        Store::financiera($financiera) ?? abort(404);
         $data = $this->validated($request);
-        $financiera->update($data);
+        Store::actualizarFinanciera($financiera, $data);
 
         return redirect()->route('financieras.index')->with('success', 'Financiera actualizada correctamente.');
     }
 
-    public function destroy(Financiera $financiera)
+    public function destroy($financiera)
     {
-        $financiera->delete();
+        Store::eliminarFinanciera($financiera);
 
         return redirect()->route('financieras.index')->with('success', 'Financiera eliminada.');
     }

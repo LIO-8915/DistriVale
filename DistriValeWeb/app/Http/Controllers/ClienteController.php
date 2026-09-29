@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cliente;
-use App\Models\Financiera;
-use App\Models\NotaCliente;
-use App\Models\Vale;
 use App\Support\PorPagina;
 use App\Support\Quincena;
+use App\Support\Wireframe\Store;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -18,33 +15,28 @@ class ClienteController extends Controller
         $q = trim((string) $request->get('q'));
         $porPagina = PorPagina::desde($request);
 
-        $clientes = Cliente::query()
-            ->with('vales.financiera')
-            ->withCount('vales')
-            ->when($q !== '', function ($query) use ($q) {
-                $query->where(function ($w) use ($q) {
-                    $w->where('nombre_completo', 'like', "%{$q}%")
-                        ->orWhere('telefono', 'like', "%{$q}%")
-                        ->orWhereHas('vales.financiera', fn ($f) => $f->where('nombre', 'like', "%{$q}%"));
-                });
-            })
-            ->when($request->filled('id_financiera'), fn ($query) => $query->whereHas(
-                'vales', fn ($v) => $v->where('id_financiera', $request->id_financiera)
+        $clientes = Store::clientes()
+            ->when($q !== '', fn ($col) => $col->filter(fn ($c) => str_contains(mb_strtolower($c->nombre_completo), mb_strtolower($q))
+                || str_contains((string) $c->telefono, $q)
+                || $c->vales->contains(fn ($v) => str_contains(mb_strtolower($v->financiera->nombre ?? ''), mb_strtolower($q)))
             ))
-            ->when($request->filled('estado'), fn ($query) => $query->where('activo', $request->estado === 'activo'))
-            ->orderBy('nombre_completo')
-            ->paginate(PorPagina::tamano($porPagina))
-            ->withQueryString();
+            ->when($request->filled('id_financiera'), fn ($col) => $col->filter(fn ($c) => $c->vales->contains('id_financiera', (int) $request->id_financiera)
+            ))
+            ->when($request->filled('estado'), fn ($col) => $col->filter(fn ($c) => $c->activo === ($request->estado === 'activo')
+            ))
+            ->values();
 
-        $totalClientes = Cliente::count();
+        $clientes = Store::paginar($clientes, PorPagina::tamano($porPagina))->withQueryString();
 
-        $porFinanciera = Financiera::orderBy('nombre')->get()->map(fn ($f) => [
+        $totalClientes = Store::clientes()->count();
+
+        $porFinanciera = Store::financieras()->map(fn ($f) => [
             'nombre' => $f->nombre,
             'id' => $f->id_financiera,
-            'clientes' => Vale::where('id_financiera', $f->id_financiera)->distinct('id_cliente')->count('id_cliente'),
+            'clientes' => Store::vales()->where('id_financiera', $f->id_financiera)->pluck('id_cliente')->unique()->count(),
         ]);
 
-        $financieras = Financiera::orderBy('nombre')->get();
+        $financieras = Store::financieras();
 
         if ($request->ajax() || $request->boolean('partial')) {
             return view('clientes._table', compact('clientes', 'porPagina'));
@@ -55,73 +47,71 @@ class ClienteController extends Controller
 
     public function create()
     {
-        return view('clientes.form', ['cliente' => new Cliente]);
+        return view('clientes.form', ['cliente' => Store::nuevoCliente()]);
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        Cliente::create($data);
+        Store::crearCliente($data);
 
         return redirect()->route('clientes.index')->with('success', 'Cliente registrado correctamente.');
     }
 
-    public function show(Cliente $cliente)
+    public function show($cliente)
     {
-        $cliente->load([
-            'vales.financiera',
-            'vales.detallesRecibo' => fn ($q) => $q->latest('created_at'),
-            'recibos' => fn ($q) => $q->latest('fecha_corte'),
-            'notas',
-        ]);
-
+        $cliente = Store::cliente($cliente) ?? abort(404);
         $ultimoPago = $cliente->ultimoPago();
 
         return view('clientes.show', compact('cliente', 'ultimoPago'));
     }
 
-    public function edit(Cliente $cliente)
+    public function edit($cliente)
     {
+        $cliente = Store::cliente($cliente) ?? abort(404);
+
         return view('clientes.form', compact('cliente'));
     }
 
-    public function update(Request $request, Cliente $cliente)
+    public function update(Request $request, $cliente)
     {
+        Store::cliente($cliente) ?? abort(404);
         $data = $this->validated($request);
-        $cliente->update($data);
+        Store::actualizarCliente($cliente, $data);
 
         return redirect()->route('clientes.index')->with('success', 'Cliente actualizado correctamente.');
     }
 
-    public function destroy(Cliente $cliente)
+    public function destroy($cliente)
     {
-        $cliente->delete();
+        Store::eliminarCliente($cliente);
 
         return redirect()->route('clientes.index')->with('success', 'Cliente eliminado.');
     }
 
-    public function storeNota(Request $request, Cliente $cliente)
+    public function storeNota(Request $request, $cliente)
     {
+        $cliente = Store::cliente($cliente) ?? abort(404);
         $request->validate(['contenido' => 'required|string|max:2000']);
 
-        NotaCliente::create([
-            'id_cliente' => $cliente->id_cliente,
-            'contenido' => $request->contenido,
-        ]);
+        Store::crearNota($cliente->id_cliente, $request->contenido);
 
         return back()->with('success', 'Nota agregada.');
     }
 
-    public function pdf(Cliente $cliente)
+    public function pdf($cliente)
     {
+        $cliente = Store::cliente($cliente) ?? abort(404);
+
         // Vigentes + los que se liquidaron en la quincena actual (su último
         // pago es parte de este periodo; los de quincenas anteriores ya no).
         $quincena = Quincena::actual();
-        $cliente->load(['vales' => fn ($q) => $q
-            ->where(fn ($w) => $w->whereIn('estado', ['ACTIVO', 'EN_MORA'])
-                ->orWhere(fn ($l) => $l->where('estado', 'LIQUIDADO')
-                    ->whereBetween('fecha_ultimo_pago', [$quincena['inicio']->copy()->startOfDay(), $quincena['fin']->copy()->endOfDay()])))
-            ->with('financiera')->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
+        $cliente->vales = $cliente->vales
+            ->filter(fn ($v) => in_array($v->estado, ['ACTIVO', 'EN_MORA'], true)
+                || ($v->estado === 'LIQUIDADO' && $v->fecha_ultimo_pago
+                    && $v->fecha_ultimo_pago->between($quincena['inicio']->copy()->startOfDay(), $quincena['fin']->copy()->endOfDay())))
+            ->sortBy(['id_financiera', 'fecha_disposicion'])
+            ->values();
 
         $pdf = Pdf::loadView('clientes.pdf', compact('cliente'));
 

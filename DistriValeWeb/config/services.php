@@ -35,23 +35,4 @@ return [
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Google Drive (respaldo de la base de datos)
-    |--------------------------------------------------------------------------
-    |
-    | Credenciales de un cliente OAuth tipo "Desktop app" creado en Google
-    | Cloud Console (APIs & Services > Credentials), con la API de Drive
-    | habilitada. El "client secret" de un cliente Desktop no es realmente
-    | secreto (así lo documenta Google para apps instaladas), pero igual se
-    | guarda en .env y no en el repo. Ver ARQUITECTURA_TAURI.md para los
-    | pasos de configuración.
-    |
-    */
-
-    'google_drive' => [
-        'client_id' => env('GOOGLE_DRIVE_CLIENT_ID'),
-        'client_secret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
-    ],
-
 ];

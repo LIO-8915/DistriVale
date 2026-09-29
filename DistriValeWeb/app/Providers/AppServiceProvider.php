@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Models\Vale;
+use App\Support\Wireframe\Store;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -38,7 +38,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.app', function ($view) {
             $view->with(
                 'vencimientos',
-                Vale::with('cliente', 'financiera')->where('estado', 'EN_MORA')->latest('updated_at')->get()
+                Store::vales()->where('estado', 'EN_MORA')->sortByDesc('updated_at')->values()
             );
         });
     }

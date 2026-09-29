@@ -2,97 +2,85 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cliente;
-use App\Models\DetalleReciboVale;
-use App\Models\ReciboConsolidado;
-use App\Support\Mora;
 use App\Support\PorPagina;
 use App\Support\Quincena;
+use App\Support\Wireframe\Store;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ReciboController extends Controller
 {
     public function index(Request $request)
     {
         $porPagina = PorPagina::desde($request);
-        $recibos = ReciboConsolidado::with('cliente')->latest('fecha_corte')
-            ->paginate(PorPagina::tamano($porPagina))->withQueryString();
+        $recibos = Store::recibos()->sortByDesc('fecha_corte')->values();
+        $recibos = Store::paginar($recibos, PorPagina::tamano($porPagina))->withQueryString();
 
         return view('recibos.index', compact('recibos', 'porPagina'));
     }
 
     public function create()
     {
-        $clientes = Cliente::where('activo', true)->orderBy('nombre_completo')->get();
+        $clientes = Store::clientes()->where('activo', true)->values();
 
         return view('recibos.create', compact('clientes'));
     }
 
     /**
-     * Genera el recibo consolidado quincenal a partir de los vales ACTIVOS del cliente.
+     * Genera el recibo consolidado quincenal a partir de los vales ACTIVOS/EN_MORA del cliente.
      */
     public function store(Request $request)
     {
         $request->validate([
-            'id_cliente' => 'required|exists:clientes,id_cliente',
+            'id_cliente' => 'required|integer',
             'fecha_corte' => 'required|date',
             'nombre_distribuidora' => 'required|string|max:150',
         ]);
 
-        $cliente = Cliente::with(['vales' => fn ($q) => $q->where('estado', '!=', 'LIQUIDADO')->with('financiera')])
-            ->findOrFail($request->id_cliente);
+        $cliente = Store::cliente($request->id_cliente) ?? abort(404);
+        $valesActivos = $cliente->vales->where('estado', '!=', 'LIQUIDADO')->values();
 
-        if ($cliente->vales->isEmpty()) {
+        if ($valesActivos->isEmpty()) {
             return back()->withErrors(['id_cliente' => 'Este cliente no tiene vales activos para consolidar.']);
         }
 
-        $recibo = DB::transaction(function () use ($request, $cliente) {
-            $totalOportuno = 0;
-            $totalExtemporaneo = 0;
+        $totalOportuno = 0;
+        $totalExtemporaneo = 0;
+        $filasDetalle = [];
 
-            $recibo = ReciboConsolidado::create([
-                'id_cliente' => $cliente->id_cliente,
-                'nombre_distribuidora' => $request->nombre_distribuidora,
-                'periodo_quincena' => Quincena::paraFecha(\Carbon\Carbon::parse($request->fecha_corte))['periodo_quincena'],
-                'fecha_corte' => $request->fecha_corte,
-                'total_oportuno' => 0,
-                'total_extemporaneo' => 0,
-                'fecha_emision' => now(),
-            ]);
+        foreach ($valesActivos as $vale) {
+            $cuota = (float) $vale->cuota_quincenal;
+            $recargoPct = (float) ($vale->financiera->recargo_porcentaje ?? 0);
+            $cuotaExtemporanea = round($cuota * (1 + $recargoPct / 100), 2);
+            $nuevoSaldo = max(0, (float) $vale->saldo_pendiente - $cuota);
 
-            foreach ($cliente->vales as $vale) {
-                $cuota = (float) $vale->cuota_quincenal;
-                $recargoPct = (float) ($vale->financiera->recargo_porcentaje ?? 0);
-                $cuotaExtemporanea = round($cuota * (1 + $recargoPct / 100), 2);
-                $nuevoSaldo = max(0, (float) $vale->saldo_pendiente - $cuota);
+            $filasDetalle[] = [
+                'id_vale' => $vale->id_vale,
+                'monto_pago' => $cuota,
+                'numero_pago_texto' => $vale->numeroPagoTexto(),
+                'nuevo_saldo' => $nuevoSaldo,
+            ];
 
-                DetalleReciboVale::create([
-                    'id_recibo' => $recibo->id_recibo,
-                    'id_vale' => $vale->id_vale,
-                    'monto_pago' => $cuota,
-                    'numero_pago_texto' => $vale->numeroPagoTexto(),
-                    'nuevo_saldo' => $nuevoSaldo,
-                ]);
+            $totalOportuno += $cuota;
+            $totalExtemporaneo += $cuotaExtemporanea;
+        }
 
-                $totalOportuno += $cuota;
-                $totalExtemporaneo += $cuotaExtemporanea;
-            }
+        $recibo = Store::crearReciboConDetalles([
+            'id_cliente' => $cliente->id_cliente,
+            'nombre_distribuidora' => $request->nombre_distribuidora,
+            'periodo_quincena' => Quincena::paraFecha(Carbon::parse($request->fecha_corte))['periodo_quincena'],
+            'fecha_corte' => $request->fecha_corte,
+            'total_oportuno' => round($totalOportuno, 2),
+            'total_extemporaneo' => round($totalExtemporaneo, 2),
+            'fecha_emision' => now()->toDateTimeString(),
+        ], $filasDetalle);
 
-            $recibo->update([
-                'total_oportuno' => $totalOportuno,
-                'total_extemporaneo' => $totalExtemporaneo,
-            ]);
-
-            return $recibo;
-        });
-
-        return redirect()->route('recibos.show', $recibo)->with('success', 'Recibo consolidado generado.');
+        return redirect()->route('recibos.show', $recibo->id_recibo)->with('success', 'Recibo consolidado generado.');
     }
 
-    public function show(ReciboConsolidado $recibo)
+    public function show($recibo)
     {
-        $recibo->load(['cliente', 'detalles.vale.financiera']);
+        $recibo = Store::recibo($recibo) ?? abort(404);
 
         return view('recibos.show', compact('recibo'));
     }
@@ -100,20 +88,11 @@ class ReciboController extends Controller
     /**
      * Marca el recibo como pagado: aplica el abono a cada vale (avanza quincena y saldo).
      */
-    public function confirmarPago(ReciboConsolidado $recibo)
+    public function confirmarPago($recibo)
     {
-        $recibo->load('detalles.vale');
+        $recibo = Store::recibo($recibo) ?? abort(404);
+        Store::confirmarPago($recibo->id_recibo);
 
-        DB::transaction(function () use ($recibo) {
-            foreach ($recibo->detalles as $detalle) {
-                $detalle->vale->registrarPago((float) $detalle->monto_pago);
-            }
-        });
-
-        // Un vale en mora que se acaba de pagar vuelve a ACTIVO en el acto,
-        // sin esperar a la revisión diaria.
-        Mora::actualizar();
-
-        return redirect()->route('recibos.show', $recibo)->with('success', 'Pago aplicado a los vales del cliente.');
+        return redirect()->route('recibos.show', $recibo->id_recibo)->with('success', 'Pago aplicado a los vales del cliente.');
     }
 }

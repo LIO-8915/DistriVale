@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cliente;
-use App\Models\Financiera;
-use App\Models\Vale;
 use App\Support\PorPagina;
+use App\Support\Wireframe\Store;
+use App\Support\Wireframe\WVale;
 use Illuminate\Http\Request;
 
 class ValeController extends Controller
@@ -14,15 +13,15 @@ class ValeController extends Controller
     {
         $porPagina = PorPagina::desde($request);
 
-        $vales = Vale::query()
-            ->with(['cliente', 'financiera'])
-            ->when($request->filled('id_financiera'), fn ($q) => $q->where('id_financiera', $request->id_financiera))
-            ->when($request->filled('estado'), fn ($q) => $q->where('estado', $request->estado))
-            ->orderByDesc('id_vale')
-            ->paginate(PorPagina::tamano($porPagina))
-            ->withQueryString();
+        $vales = Store::vales()
+            ->when($request->filled('id_financiera'), fn ($col) => $col->where('id_financiera', (int) $request->id_financiera))
+            ->when($request->filled('estado'), fn ($col) => $col->where('estado', $request->estado))
+            ->sortByDesc('id_vale')
+            ->values();
 
-        $financieras = Financiera::orderBy('nombre')->get();
+        $vales = Store::paginar($vales, PorPagina::tamano($porPagina))->withQueryString();
+
+        $financieras = Store::financieras();
 
         if ($request->ajax()) {
             return view('vales._table', compact('vales', 'porPagina'));
@@ -33,52 +32,55 @@ class ValeController extends Controller
 
     public function create()
     {
-        return $this->form(new Vale);
+        return $this->form(Store::nuevoVale());
     }
 
     public function store(Request $request)
     {
         $data = $this->validated($request);
         $data['saldo_pendiente'] = $data['monto_original'];
-        Vale::create($data);
+        Store::crearVale($data);
 
         return redirect()->route('vales.index')->with('success', 'Vale registrado correctamente.');
     }
 
-    public function edit(Vale $vale)
+    public function edit($vale)
     {
+        $vale = Store::vale($vale) ?? abort(404);
+
         return $this->form($vale);
     }
 
-    public function update(Request $request, Vale $vale)
+    public function update(Request $request, $vale)
     {
+        Store::vale($vale) ?? abort(404);
         $data = $this->validated($request);
-        $vale->update($data);
+        Store::actualizarVale($vale, $data);
 
         return redirect()->route('vales.index')->with('success', 'Vale actualizado correctamente.');
     }
 
-    public function destroy(Vale $vale)
+    public function destroy($vale)
     {
-        $vale->delete();
+        Store::eliminarVale($vale);
 
         return redirect()->route('vales.index')->with('success', 'Vale eliminado.');
     }
 
-    private function form(Vale $vale)
+    private function form(WVale $vale)
     {
         return view('vales.form', [
             'vale' => $vale,
-            'clientes' => Cliente::orderBy('nombre_completo')->get(),
-            'financieras' => Financiera::orderBy('nombre')->get(),
+            'clientes' => Store::clientes(),
+            'financieras' => Store::financieras(),
         ]);
     }
 
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'id_cliente' => 'required|exists:clientes,id_cliente',
-            'id_financiera' => 'required|exists:cat_financieras,id_financiera',
+        $data = $request->validate([
+            'id_cliente' => 'required|integer',
+            'id_financiera' => 'required|integer',
             'folio_vale' => 'required|string|max:50',
             'fecha_disposicion' => 'nullable|date',
             'monto_original' => 'required|numeric|min:0',
@@ -88,5 +90,16 @@ class ValeController extends Controller
             'saldo_pendiente' => 'nullable|numeric|min:0',
             'estado' => 'required|in:ACTIVO,LIQUIDADO,EN_MORA',
         ]);
+
+        // La regla "integer" de arriba solo valida, no convierte — sin este
+        // cast, id_cliente/id_financiera quedan como string y ya no calzan
+        // (Store compara por === en algunos lados) contra los ids reales,
+        // que sí son int (asignados por Store::nextId()).
+        $data['id_cliente'] = (int) $data['id_cliente'];
+        $data['id_financiera'] = (int) $data['id_financiera'];
+        $data['total_quincenas'] = (int) $data['total_quincenas'];
+        $data['quincena_actual'] = (int) $data['quincena_actual'];
+
+        return $data;
     }
 }
