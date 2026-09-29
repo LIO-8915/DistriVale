@@ -672,15 +672,23 @@
 
         /* Paginación (plantilla bootstrap-5 de Laravel): mismo vidrio que las
            .card. Fuera de una tarjeta queda sobre el fondo oscuro, así que el
-           texto "Mostrando X a Y" (un div .small.text-muted) va en su propia píldora para que se lea. */
-        .dv-pagination .pagination { margin: 0; gap: .3rem; flex-wrap: wrap; }
-        .dv-pagination .page-link {
+           texto "Mostrando X a Y" (un div .small.text-muted) va en su propia píldora para que se lea.
+           El selector "Mostrar 10 · 25 · 50 · Todos" (partials/por-pagina)
+           reusa las mismas clases .page-link/.active en vez de los .btn de
+           Bootstrap — así se ve igual de vidrio que los números de página,
+           en vez de un grupo de botones cuadrados y pegados, en TODAS las
+           tablas (es un único partial compartido). */
+        .dv-pagination .pagination, .dv-por-pagina > div { margin: 0; gap: .3rem; flex-wrap: wrap; }
+        .dv-pagination .page-link, .dv-por-pagina .page-link {
             border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .55);
             background: rgba(255, 255, 255, .8); color: #000; min-width: 2.2rem; text-align: center;
             -webkit-backdrop-filter: blur(14px) saturate(200%); backdrop-filter: blur(14px) saturate(200%);
+            text-decoration: none; display: inline-block;
         }
-        .dv-pagination .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; }
-        .dv-pagination .page-item.active .page-link { background: var(--dv-accent); border-color: var(--dv-accent); color: #fff; }
+        .dv-pagination .page-link:hover, .dv-por-pagina .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; }
+        .dv-pagination .page-item.active .page-link, .dv-por-pagina .page-link.active {
+            background: var(--dv-accent); border-color: var(--dv-accent); color: #fff;
+        }
         .dv-pagination .page-item.disabled .page-link { background: rgba(255, 255, 255, .55); color: rgba(0, 0, 0, .45); }
         .dv-pagination .small.text-muted {
             display: inline-block; margin: 0; padding: .35rem .85rem; border-radius: 999px;
