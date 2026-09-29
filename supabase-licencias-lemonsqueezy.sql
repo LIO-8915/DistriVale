@@ -65,6 +65,16 @@ create table if not exists alertas (
 create index if not exists alertas_cuenta_id_idx on alertas (cuenta_id);
 create index if not exists alertas_no_resueltas_idx on alertas (creado_en) where not resuelta;
 
+-- RLS habilitado y sin políticas para anon/authenticated — mismo patrón
+-- que ya usa `activaciones` en supabase-setup.sql. La `anon key` viaja
+-- incrustada en el DistriVale.exe que se distribuye a los clientes: sin
+-- esto, cualquiera con esa key podría leer o insertar alertas de
+-- cualquier cuenta directo por la API REST, saltándose por completo
+-- registrar_cuenta_licencia()/registrar_evento_monitoreo(). Solo
+-- `service_role` (AdminDistriVale) y las funciones `security definer`
+-- de abajo pueden tocar esta tabla.
+alter table alertas enable row level security;
+
 -- --- 3. Tabla de logs de actividad (monitoreo local) -----------------
 
 create table if not exists logs_actividad (
@@ -77,6 +87,11 @@ create table if not exists logs_actividad (
 );
 
 create index if not exists logs_actividad_cuenta_id_idx on logs_actividad (cuenta_id, creado_en desc);
+
+-- Mismo motivo que en `alertas`: sin RLS, la anon key incrustada en el
+-- .exe distribuido podría leer/escribir logs de cualquier cuenta directo
+-- por la API REST.
+alter table logs_actividad enable row level security;
 
 -- --- 4. registrar_cuenta_licencia(): activación con license key ------
 --
