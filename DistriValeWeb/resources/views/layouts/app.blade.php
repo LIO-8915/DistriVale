@@ -681,9 +681,15 @@
         .dv-pagination .pagination, .dv-por-pagina > div { margin: 0; gap: .3rem; flex-wrap: wrap; }
         .dv-pagination .page-link, .dv-por-pagina .page-link {
             border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .55);
-            background: rgba(255, 255, 255, .8); color: #000; min-width: 2.2rem; text-align: center;
+            background: rgba(255, 255, 255, .8); color: #000;
             -webkit-backdrop-filter: blur(14px) saturate(200%); backdrop-filter: blur(14px) saturate(200%);
-            text-decoration: none; display: inline-block;
+            text-decoration: none;
+            /* Cuadrados de verdad (mismo ancho que alto) para números/flechas
+               — "Todos" es la única etiqueta que no entra en ese cuadrado
+               mínimo, así que crece a lo ancho (min-width) en vez de achicar
+               el texto o desbordarlo. */
+            display: inline-flex; align-items: center; justify-content: center;
+            height: 2.4rem; min-width: 2.4rem; padding: 0 .5rem;
         }
         .dv-pagination .page-link:hover, .dv-por-pagina .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; }
         .dv-pagination .page-item.active .page-link, .dv-por-pagina .page-link.active {
