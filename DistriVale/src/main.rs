@@ -380,6 +380,13 @@ fn main() {
                 // página que todavía no existe y quedarse sin efecto.
                 std::thread::sleep(Duration::from_millis(400));
 
+                // Solo existe en builds de debug — ver el comentario en
+                // licensing.rs. En release esta función siempre da false.
+                if licensing::dev_saltar_activacion() {
+                    iniciar_app_principal(app_handle);
+                    return;
+                }
+
                 let status = tauri::async_runtime::block_on(
                     licensing::check_saved_account(app_handle.clone()),
                 );
@@ -425,6 +432,7 @@ fn main() {
                         let _ = child.kill();
                     }
                 }
+                licensing::dev_limpiar_licencia_al_salir(&window.app_handle());
             }
         })
         .run(tauri::generate_context!())

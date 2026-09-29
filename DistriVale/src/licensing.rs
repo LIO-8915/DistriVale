@@ -287,6 +287,49 @@ pub async fn check_saved_account(app: AppHandle) -> Result<AccountStatus, String
     }
 }
 
+// --- SOLO DESARROLLO: saltarse la activación / limpiar al salir ---
+//
+// Todo lo de acá abajo existe únicamente en builds de debug
+// (`cargo run` / `cargo build` sin `--release`) — en release, que es lo
+// que se compila para el cliente, este código ni siquiera se incluye en
+// el binario (no es solo "desactivado", literalmente no existe: no hay
+// forma de activarlo por accidente en el .exe que se distribuye, ni de
+// encontrar el nombre de estas variables haciendo `strings` sobre él).
+//
+// Nada de esto se guarda en el repo: son variables de entorno que cada
+// quien setea localmente antes de correr `cargo run`, nunca un valor
+// hardcodeado en el código ni en un archivo versionado.
+//
+//   - DISTRIVALE_DEV_SKIP_LICENSE=1
+//       Salta por completo la pantalla de activación (no llama a Lemon
+//       Squeezy ni a Supabase) y arranca directo. Para cuando estás
+//       trabajando en cualquier otra parte de la app y la licencia no
+//       importa.
+//   - DISTRIVALE_DEV_CLEAR_LICENSE_ON_EXIT=1
+//       Borra license.json al cerrar la ventana, así cada arranque
+//       vuelve a pedir activación desde cero. Para cuando sí estás
+//       probando el flujo de activación en sí con una license key de
+//       prueba de Lemon Squeezy, sin tener que borrar el archivo a mano
+//       cada vez.
+
+#[cfg(debug_assertions)]
+pub fn dev_saltar_activacion() -> bool {
+    std::env::var("DISTRIVALE_DEV_SKIP_LICENSE").is_ok()
+}
+#[cfg(not(debug_assertions))]
+pub fn dev_saltar_activacion() -> bool {
+    false
+}
+
+#[cfg(debug_assertions)]
+pub fn dev_limpiar_licencia_al_salir(app: &AppHandle) {
+    if std::env::var("DISTRIVALE_DEV_CLEAR_LICENSE_ON_EXIT").is_ok() {
+        let _ = delete_local_license(app);
+    }
+}
+#[cfg(not(debug_assertions))]
+pub fn dev_limpiar_licencia_al_salir(_app: &AppHandle) {}
+
 // --- MÉTODOS AUXILIARES: Guardar / Cargar / Borrar en disco ---
 
 fn get_license_file_path(app: &AppHandle) -> Result<PathBuf, String> {
