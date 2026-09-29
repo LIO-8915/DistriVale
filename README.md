@@ -2,7 +2,11 @@
 
 Aplicación de escritorio (Tauri + Laravel) para administrar clientes, créditos, cobranza y liquidaciones de un negocio de préstamos.
 
-## Versión actual: v0.9.5
+## Versión actual: v0.9.6
+
+Corrige que al abrir DistriVale apareciera una ventana de consola de fondo (con su propio ícono en la barra de tareas) además de la ventana de la app — el binario se linkeaba como app de consola por no tener seteado `windows_subsystem`. Se agrega `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]` al inicio de `DistriVale/src/main.rs`: desaparece en el `.exe` de release (lo que corre el cliente), se conserva en `cargo run` para poder ver `println!`/errores mientras se desarrolla.
+
+## Versión anterior: v0.9.5
 
 Cambia el licenciamiento: la activación ya no es correo + código de un solo uso, es la license key de Lemon Squeezy que el cliente recibe al comprar. Lemon Squeezy pasa a ser la única fuente de verdad de si la licencia sigue activa y cuántos equipos puede tener activados (`activation_limit`); Supabase deja de decidir eso y pasa a ser la capa de auditoría: guarda un espejo de cuenta/dispositivo, junta las anomalías que detecta el nuevo "módulo de monitoreo local" (reloj manipulado, huella de equipo que cambió) en `logs_actividad`, y genera filas en `alertas` cuando algo amerita revisión desde AdminDistriVale. Supabase conserva un veto manual rápido: suspender una cuenta o revocar un dispositivo ahí sigue bloqueando el acceso en el siguiente arranque, aunque Lemon Squeezy diga que la licencia es válida.
 

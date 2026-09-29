@@ -1,3 +1,10 @@
+// Sin esto, el binario se linkea como app de consola: al abrir DistriVale
+// aparece de fondo una ventana de terminal (y su propio ícono en la
+// barra de tareas) además de la ventana de la app. Solo se desactiva en
+// release — en debug (`cargo run`) conviene conservarla para ver
+// println!/errores de arranque mientras se desarrolla.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 // Ver ARQUITECTURA_TAURI.md para el flujo completo. Este shell:
 //   1. Arranca `php artisan serve` sobre DistriValeWeb/ en un puerto local libre.
 //   2. Espera a que el servidor responda.
