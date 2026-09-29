@@ -6,16 +6,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 // Ver ARQUITECTURA_TAURI.md para el flujo completo. Este shell:
-//   1. Arranca `php artisan serve` sobre DistriValeWeb/ en un puerto local libre.
+//   1. Arranca `php artisan serve` sobre DistriValeWeb/ en un puerto local libre,
+//      usando el PHP portable embebido (ver DistriVale/php-portable/ y
+//      resolve_php_dir) — el cliente no necesita tener PHP instalado.
 //   2. Espera a que el servidor responda.
 //   3. Navega la ventana principal (que arranca en dist/index.html, una
 //      pantalla de carga) hacia http://127.0.0.1:<puerto>.
 //   4. Al cerrar la ventana, mata el proceso de PHP.
 //
-// Empaquetado final (PHP portable embebido, copia de DistriValeWeb sin
-// .env/vendor de dev, etc.) es trabajo pendiente — ver sección 5 del
-// documento de arquitectura. Esta versión ya es utilizable para desarrollo
-// y para correr la app como ventana nativa apuntando al PHP del sistema.
+// Empaquetado final del instalador (`cargo tauri build`, requiere
+// `tauri-cli` instalado) sigue pendiente — ver sección 5 del documento de
+// arquitectura — pero el PHP portable y la copia de DistriValeWeb ya están
+// listos para que ese build los incluya (ver `bundle.resources` en
+// tauri.conf.json).
 
 mod licensing;
 mod monitoreo_local;
@@ -47,8 +50,7 @@ fn find_free_port() -> u16 {
 }
 
 /// Ubica la app Laravel probando, en orden: (1) un build empaquetado de
-/// verdad, donde vive junto al ejecutable como `resources/app` (pendiente:
-/// sidecar de PHP portable, ver ARQUITECTURA_TAURI.md §5); (2) una copia
+/// verdad, donde vive junto al ejecutable como `resources/app`; (2) una copia
 /// portable — el .exe con una carpeta `DistriValeWeb/` hermana, sin importar
 /// en qué carpeta se haya copiado el par — resuelta en tiempo de EJECUCIÓN
 /// vía `current_exe()`, a diferencia de (3); (3) la carpeta hermana del
@@ -56,13 +58,14 @@ fn find_free_port() -> u16 {
 /// COMPILACIÓN — solo funciona en esta máquina, en esta ruta exacta.
 fn resolve_webapp_dir(app: &AppHandle) -> Option<PathBuf> {
     if let Ok(resource_dir) = app.path().resource_dir() {
-        let packaged = resource_dir.join("app");
+        let packaged = quitar_prefijo_extendido(resource_dir).join("app");
         if packaged.join("artisan").exists() {
             return Some(packaged);
         }
     }
 
     if let Ok(exe_path) = std::env::current_exe() {
+        let exe_path = quitar_prefijo_extendido(exe_path);
         if let Some(exe_dir) = exe_path.parent() {
             let portable = exe_dir.join("DistriValeWeb");
             if portable.join("artisan").exists() {
@@ -81,8 +84,118 @@ fn resolve_webapp_dir(app: &AppHandle) -> Option<PathBuf> {
     None
 }
 
-fn spawn_php_server(webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
-    let mut cmd = Command::new("php");
+/// `current_exe()`/`resource_dir()` a veces devuelven el path con el
+/// prefijo extendido de Windows (`\\?\C:\...`, para rutas de más de 260
+/// caracteres) — que `std::fs`/`Command` manejan bien, pero que Symfony
+/// Process (del lado PHP, al armar los archivos temporales de
+/// `php artisan serve`) no tolera del todo: fallaba con "No such file or
+/// directory" para un path que sí existía, solo por traer ese prefijo.
+/// Se quita a mano antes de escribirlo en php.ini o pasarlo como argumento.
+fn quitar_prefijo_extendido(path: PathBuf) -> PathBuf {
+    match path.to_str() {
+        Some(s) if s.starts_with(r"\\?\") => PathBuf::from(&s[4..]),
+        _ => path,
+    }
+}
+
+/// Ubica el PHP portable embebido, con la misma estrategia de 3 pasos que
+/// `resolve_webapp_dir` (empaquetado / copia portable hermana / carpeta de
+/// desarrollo `DistriVale/php-portable`, gitignorada — ver .gitignore).
+/// Si nada de eso existe, cae a `php` del PATH del sistema — útil en una
+/// máquina de desarrollo que ya tiene PHP instalado, pero es justo lo que
+/// NO puede pasar en la máquina del cliente, por eso el resto de esta
+/// función asume que la carpeta portable es la real fuente de verdad.
+fn resolve_php_dir(app: &AppHandle) -> Option<PathBuf> {
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let packaged = quitar_prefijo_extendido(resource_dir).join("php");
+        if packaged.join("php.exe").exists() {
+            return Some(packaged);
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        let exe_path = quitar_prefijo_extendido(exe_path);
+        if let Some(exe_dir) = exe_path.parent() {
+            let portable = exe_dir.join("php");
+            if portable.join("php.exe").exists() {
+                return Some(portable);
+            }
+        }
+    }
+
+    let dev_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("php-portable");
+    if dev_dir.join("php.exe").exists() {
+        return Some(dev_dir);
+    }
+
+    None
+}
+
+/// Reescribe `php.ini` con rutas absolutas calculadas ahora mismo, antes de
+/// cada arranque — no se puede dejar fijas en el archivo porque dependen de
+/// dónde haya quedado instalado el .exe en la máquina del cliente:
+///
+/// - `extension_dir`: si queda relativa, PHP la resuelve contra el
+///   directorio de trabajo del proceso, no contra la carpeta de este
+///   php.ini — y ese directorio de trabajo es `DistriValeWeb/`, no acá.
+/// - `sys_temp_dir`: en Windows, `php artisan serve` NO hereda las
+///   variables de entorno del proceso que lo lanza al proceso hijo que de
+///   verdad atiende las peticiones (Laravel solo deja pasar una lista fija:
+///   PATH, SYSTEMROOT, etc. — ver `ServeCommand::$passthroughVariables`).
+///   Sin este ini a mano, `sys_get_temp_dir()` en ese proceso hijo cae a lo
+///   que Windows encuentre sin TMP/TEMP, y dompdf (que necesita un
+///   directorio temporal para generar cada PDF) truena con "Path must not
+///   be empty" — encontrado probando los reportes con este mismo PHP
+///   portable, no es un problema teórico.
+fn write_php_ini(php_dir: &PathBuf) -> std::io::Result<()> {
+    let ext_dir = php_dir.join("ext");
+    let tmp_dir = php_dir.join("tmp");
+    std::fs::create_dir_all(&tmp_dir)?;
+
+    let ini = format!(
+        r#"[PHP]
+engine = On
+short_open_tag = Off
+memory_limit = 256M
+max_execution_time = 60
+post_max_size = 32M
+upload_max_filesize = 16M
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+display_errors = Off
+log_errors = On
+default_charset = "UTF-8"
+date.timezone = "America/Mazatlan"
+extension_dir = "{}"
+sys_temp_dir = "{}"
+
+extension=curl
+extension=fileinfo
+extension=gd
+extension=mbstring
+extension=openssl
+extension=pdo_sqlite
+extension=sqlite3
+extension=zip
+"#,
+        ext_dir.display(),
+        tmp_dir.display(),
+    );
+
+    std::fs::write(php_dir.join("php.ini"), ini)
+}
+
+fn spawn_php_server(php_dir: Option<&PathBuf>, webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
+    let php_binary = match php_dir {
+        Some(dir) => {
+            write_php_ini(dir)?;
+            dir.join("php.exe")
+        }
+        // Sin PHP portable embebido (típicamente solo en desarrollo, ver
+        // resolve_php_dir): cae al `php` del PATH del sistema tal cual.
+        None => PathBuf::from("php"),
+    };
+
+    let mut cmd = Command::new(php_binary);
     cmd.arg("artisan")
         .arg("serve")
         .arg("--host=127.0.0.1")
@@ -221,14 +334,17 @@ fn iniciar_app_principal(app_handle: AppHandle) {
     };
 
     let port = find_free_port();
+    let php_dir = resolve_php_dir(&app_handle);
 
-    let child = match spawn_php_server(&webapp_dir, port) {
+    let child = match spawn_php_server(php_dir.as_ref(), &webapp_dir, port) {
         Ok(child) => child,
         Err(e) => {
-            show_startup_error(
-                &app_handle,
-                &format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?"),
-            );
+            let mensaje = if php_dir.is_some() {
+                format!("No se pudo iniciar PHP ({e}).")
+            } else {
+                format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?")
+            };
+            show_startup_error(&app_handle, &mensaje);
             return;
         }
     };

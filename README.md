@@ -2,7 +2,11 @@
 
 Aplicación de escritorio (Tauri + Laravel) para administrar clientes, créditos, cobranza y liquidaciones de un negocio de préstamos.
 
-## Versión actual: v0.9.6
+## Versión actual: v0.9.7
+
+Empaqueta PHP portable (8.4.x NTS x64, descargado de windows.php.net) dentro de la propia app, para que el cliente que instale DistriVale no necesite tener PHP instalado por su cuenta. Vive en `DistriVale/php-portable/` — pesa ~90 MB, por eso está en `.gitignore` (ver `ARQUITECTURA_TAURI.md` §5 para cómo regenerarla) y no se sube al repo. `main.rs` lo ubica en tiempo de ejecución (`resolve_php_dir`) con la misma estrategia de 3 pasos que ya usaba para encontrar `DistriValeWeb/`, y reescribe `php.ini` en cada arranque (`write_php_ini`) con rutas absolutas — no se pueden fijar en el archivo porque dependen de dónde quede instalado el `.exe` en la máquina del cliente. En el camino aparecieron y se corrigieron dos bugs de plataforma en Windows (ver ARQUITECTURA_TAURI.md): `php artisan serve` no hereda la mayoría de las variables de entorno al proceso que de verdad atiende las peticiones (rompía la generación de PDFs), y `current_exe()`/`resource_dir()` a veces traen el prefijo extendido de rutas de Windows (`\\?\...`), que Symfony Process no tolera.
+
+## Versión anterior: v0.9.6
 
 Corrige que al abrir DistriVale apareciera una ventana de consola de fondo (con su propio ícono en la barra de tareas) además de la ventana de la app — el binario se linkeaba como app de consola por no tener seteado `windows_subsystem`. Se agrega `#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]` al inicio de `DistriVale/src/main.rs`: desaparece en el `.exe` de release (lo que corre el cliente), se conserva en `cargo run` para poder ver `println!`/errores mientras se desarrolla.
 

@@ -1,6 +1,12 @@
 /target
 /gen
 
+# PHP portable embebido para distribuir la app sin que el cliente necesite
+# instalar PHP — pesa ~90 MB, se descarga aparte (ver README) y php.ini se
+# regenera solo en cada arranque (write_php_ini en main.rs), así que no hay
+# nada acá que valga la pena versionar.
+/php-portable
+
 # Licensing (Lemon Squeezy) - secrets and local activation data, never commit
 .env
 .env.*

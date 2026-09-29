@@ -92,20 +92,17 @@ Este patrón (arrancar un servidor PHP local como *sidecar* de Tauri) es el meca
 
 ## 5. Pasos pendientes para el empaquetado final
 
-`DistriVale/` ya tiene `tauri.conf.json`, `build.rs`, íconos (`icons/`), una pantalla de carga (`dist/index.html`) y un `main.rs` funcional que arranca `php artisan serve` apuntando a `DistriValeWeb/`, espera a que el puerto responda y navega la ventana hacia él — ver el paso 1 y 3 de abajo, ya resueltos. Esto es **usable en desarrollo** (`cargo run` desde `DistriVale/`, con PHP del sistema en el `PATH`), pero todavía depende de que la usuaria final tenga PHP instalado. Para llegar a un instalador distribuible sin esa dependencia falta:
+`DistriVale/` ya tiene `tauri.conf.json`, `build.rs`, íconos (`icons/`), una pantalla de carga (`dist/index.html`) y un `main.rs` funcional que arranca `php artisan serve` apuntando a `DistriValeWeb/`, espera a que el puerto responda y navega la ventana hacia él — ver el paso 1 y 3 de abajo, ya resueltos. Para llegar a un instalador distribuible falta:
 
 1. ~~Inicializar Tauri de verdad~~ — hecho: `tauri.conf.json`, `build.rs` (`tauri_build::build()`), `icons/`.
 
-2. **Configurar el sidecar de PHP portable** en `tauri.conf.json` (hoy `main.rs` invoca el `php` del `PATH`, no un binario embebido):
-   ```json
-   {
-     "bundle": {
-       "externalBin": ["binaries/php"],
-       "resources": ["resources/app/**/*"]
-     }
-   }
-   ```
-   `binaries/php-x86_64-pc-windows-msvc.exe` sería el PHP Portable, renombrado según convención de sidecars de Tauri. `main.rs` debe cambiar de `Command::new("php")` a resolver el sidecar vía `tauri::process::Command::new_sidecar("php")`.
+2. ~~PHP portable embebido~~ — hecho, sin depender del mecanismo de sidecar de Tauri (que espera un solo binario, no una instalación completa de PHP con su carpeta `ext/`): `DistriVale/php-portable/` (gitignorada — ver más abajo cómo generarla) trae PHP 8.4.x NTS x64 completo, descargado de windows.php.net. `resolve_php_dir()` en `main.rs` lo ubica con la misma estrategia de 3 pasos que `resolve_webapp_dir()` (empaquetado vía `resource_dir()` → copia portable hermana del `.exe` → carpeta de desarrollo), y `write_php_ini()` regenera `php.ini` en cada arranque con `extension_dir`/`sys_temp_dir` absolutos calculados en el momento — no se pueden dejar fijos en el archivo porque dependen de dónde termine instalado el `.exe` en la máquina del cliente. `tauri.conf.json` ya declara `bundle.resources: {"php-portable": "php"}` para que `cargo tauri build` lo incluya.
+
+   Para regenerar `php-portable/` (por ejemplo, para subir a otra versión de PHP): descargar el zip NTS x64 correspondiente de `https://windows.php.net/downloads/releases/`, extraerlo completo en `DistriVale/php-portable/` — no hace falta tocar nada más, `php.ini` se escribe solo en cada arranque. Usar la MISMA versión mayor.menor que `vendor/composer/platform_check.php` exige en `DistriValeWeb` (ahí quedó registrada la versión real usada al instalar los paquetes de Composer, que puede ser más nueva que el `"php": "^8.3"` de `composer.json` si alguna dependencia transitiva pide más) — mezclar versiones hace que la app truene al arrancar con "Composer detected issues in your platform".
+
+   Dos bugs de plataforma (Windows) que costó encontrar al probar esto, documentados en el código por si vuelven a aparecer:
+   - `php artisan serve` en Windows NO hereda la mayoría de las variables de entorno al proceso hijo que de verdad atiende las peticiones (Laravel solo deja pasar una lista fija: `PATH`, `SYSTEMROOT`, etc. — ver `Illuminate\Foundation\Console\ServeCommand::$passthroughVariables`). Sin `sys_temp_dir` fijado a mano en `php.ini`, `sys_get_temp_dir()` en ese proceso hijo cae a algo que puede no ser escribible, y dompdf (que necesita un directorio temporal para generar cada PDF) truena con `ValueError: Path must not be empty`.
+   - `current_exe()`/`resource_dir()` a veces devuelven el path con el prefijo extendido de Windows (`\\?\C:\...`) — que Rust maneja bien, pero que Symfony Process (usado por `php artisan serve` para armar sus propios archivos temporales) no tolera: fallaba con "No such file or directory" para un path que sí existía. `quitar_prefijo_extendido()` en `main.rs` lo saca a mano antes de usar cualquiera de estos paths.
 
 3. ~~Escribir el `main.rs`~~ — hecho: `setup()` lanza el proceso PHP y guarda el `Child` en el estado de Tauri; `on_window_event(CloseRequested)` lo mata. Pendiente (opcional): preparar `%APPDATA%\DistriVale` con `database.sqlite` y `.env` propios (hoy usa directamente el `.env`/`database.sqlite` de `DistriValeWeb/`), y comandos Tauri para respaldo/restauración de la base.
 
@@ -113,7 +110,7 @@ Este patrón (arrancar un servidor PHP local como *sidecar* de Tauri) es el meca
    - Corre `composer install --no-dev --optimize-autoloader` dentro de `DistriValeWeb/`.
    - Corre `php artisan config:cache` y `php artisan view:cache` contra una base de datos SQLite "plantilla" ya migrada.
    - Copia `DistriValeWeb/` (sin `.env`, sin `node_modules`, sin `database/database.sqlite` de desarrollo) a `DistriVale/resources/app/`.
-   - Descarga/incluye el binario de PHP Portable x64 NTS en `DistriVale/binaries/`.
+   - `DistriVale/php-portable/` (ver paso 2 de arriba) ya no requiere este paso — solo tiene que existir antes de correr `cargo tauri build`, `tauri.conf.json` la empaqueta sola.
 
 5. **`cargo tauri build`** (requiere `cargo install tauri-cli`, no instalado todavía en este entorno) genera el instalador `.msi`/`.exe` final para Windows.
 
