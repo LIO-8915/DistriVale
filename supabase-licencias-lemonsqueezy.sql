@@ -41,13 +41,15 @@ create unique index if not exists perfiles_license_key_hash_key
 -- contraseña que crear — así que necesitan poder existir sin un
 -- auth.users correspondiente. Se quita esa restricción y se le da un
 -- default para que el insert de la función de abajo no tenga que
--- inventar un id:
---   alter table perfiles drop constraint perfiles_id_fkey; -- ajustar el nombre si difiere
---   alter table perfiles alter column id set default gen_random_uuid();
+-- inventar un id (nombre de la constraint confirmado con
+-- `select conname, pg_get_constraintdef(oid) from pg_constraint
+--  where conrelid = 'public.perfiles'::regclass and contype = 'f';`
+-- contra el proyecto real de Supabase):
+alter table perfiles drop constraint if exists perfiles_id_fkey;
+alter table perfiles alter column id set default gen_random_uuid();
 -- Las cuentas viejas (correo + código) siguen teniendo su id = el
 -- auth.users original; esto no las toca, solo deja de exigir la FK
--- para las filas nuevas. Correr `\d perfiles` primero para confirmar
--- el nombre real de la constraint antes de soltarla.
+-- para las filas nuevas.
 
 -- --- 2. Tabla de alertas ---------------------------------------------
 
