@@ -268,7 +268,30 @@ fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
 
     let script = format!(
         r#"
+        // Sin esto, WebView2 aplica su propio tema nativo oscuro por
+        // encima de los controles de formulario (appearance: auto por
+        // defecto en <input>/<button>) y "lava" los colores puestos acá
+        // abajo, haciendo que se vean planos/deshabilitados aunque
+        // funcionen — declarar el color-scheme evita que el navegador
+        // intente reinterpretar los colores por su cuenta.
+        document.documentElement.style.colorScheme = 'dark';
+
         document.body.innerHTML = `
+          <style>
+            #dv-license-key, #dv-activar-btn {{
+              appearance: none;
+              -webkit-appearance: none;
+              font: inherit;
+            }}
+            #dv-license-key:focus {{
+              outline: none;
+              border-color: #4f7cff;
+              box-shadow: 0 0 0 3px rgba(79,124,255,.35);
+            }}
+            #dv-activar-btn:hover:not(:disabled) {{ background: #3d69eb; }}
+            #dv-activar-btn:active:not(:disabled) {{ background: #3359d6; }}
+            #dv-activar-btn:disabled {{ opacity: .6; cursor: not-allowed; }}
+          </style>
           <div style="font-family:-apple-system,'Segoe UI',Inter,system-ui,sans-serif;color:#e6e9f0;
                       max-width:380px;margin:3rem auto;padding:0 1.5rem;text-align:center">
             <h2 style="color:#fff;font-size:1.3rem;margin-bottom:.3rem">Activar DistriVale</h2>
@@ -278,11 +301,12 @@ fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
             <div id="dv-activacion-error" style="color:#ff8fa3;font-size:.85rem;min-height:1.2rem;margin-bottom:.5rem"></div>
             <input id="dv-license-key" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" autocomplete="off"
                    style="width:100%;box-sizing:border-box;padding:.6rem .8rem;margin-bottom:1rem;
-                          border-radius:8px;border:1px solid #2a3040;background:#131722;color:#fff;
-                          letter-spacing:.03em">
+                          border-radius:8px;border:1px solid #3a4258;background:#0d1119;color:#fff;
+                          letter-spacing:.03em;transition:border-color .15s,box-shadow .15s">
             <button id="dv-activar-btn"
                     style="width:100%;padding:.65rem;border:0;border-radius:8px;
-                           background:#4f7cff;color:#fff;font-weight:600;cursor:pointer">
+                           background:#4f7cff;color:#fff;font-weight:600;cursor:pointer;
+                           transition:background .15s">
               Activar
             </button>
           </div>`;
