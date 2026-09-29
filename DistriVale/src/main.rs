@@ -11,6 +11,7 @@
 // y para correr la app como ventana nativa apuntando al PHP del sistema.
 
 mod licensing;
+mod monitoreo_local;
 mod supabase_licensing;
 
 use std::net::TcpStream;
@@ -246,10 +247,11 @@ fn iniciar_app_principal(app_handle: AppHandle) {
 }
 
 /// Reemplaza la pantalla de carga con un formulario simple de activación
-/// (correo + código de un solo uso) cuando no hay ninguna cuenta local
-/// válida — inyectado directo sobre el splash en vez de navegar a un
-/// archivo aparte, para no tener que lidiar con volver del origen
-/// http://127.0.0.1:<puerto> de vuelta al de los assets empaquetados.
+/// (la license key de Lemon Squeezy que el cliente recibió por correo al
+/// comprar) cuando no hay ninguna licencia local válida — inyectado
+/// directo sobre el splash en vez de navegar a un archivo aparte, para no
+/// tener que lidiar con volver del origen http://127.0.0.1:<puerto> de
+/// vuelta al de los assets empaquetados.
 fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
     let Some(window) = app.get_webview_window("main") else { return };
 
@@ -264,16 +266,13 @@ fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
                       max-width:380px;margin:3rem auto;padding:0 1.5rem;text-align:center">
             <h2 style="color:#fff;font-size:1.3rem;margin-bottom:.3rem">Activar DistriVale</h2>
             <p style="color:#aab4c6;font-size:.9rem;margin-bottom:1.5rem">
-              Ingresa tu correo y el código de activación que te dieron.
+              Ingresa la clave de licencia que recibiste por correo al comprar.
             </p>
             <div id="dv-activacion-error" style="color:#ff8fa3;font-size:.85rem;min-height:1.2rem;margin-bottom:.5rem"></div>
-            <input id="dv-correo" type="email" placeholder="Correo" autocomplete="email"
-                   style="width:100%;box-sizing:border-box;padding:.6rem .8rem;margin-bottom:.6rem;
-                          border-radius:8px;border:1px solid #2a3040;background:#131722;color:#fff">
-            <input id="dv-codigo" type="text" placeholder="XXXX-XXXX-XXXX" autocomplete="off"
+            <input id="dv-license-key" type="text" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" autocomplete="off"
                    style="width:100%;box-sizing:border-box;padding:.6rem .8rem;margin-bottom:1rem;
                           border-radius:8px;border:1px solid #2a3040;background:#131722;color:#fff;
-                          text-transform:uppercase;letter-spacing:.05em">
+                          letter-spacing:.03em">
             <button id="dv-activar-btn"
                     style="width:100%;padding:.65rem;border:0;border-radius:8px;
                            background:#4f7cff;color:#fff;font-weight:600;cursor:pointer">
@@ -284,25 +283,24 @@ fn show_activation_screen(app: &AppHandle, mensaje_inicial: Option<&str>) {
 
         var btn = document.getElementById('dv-activar-btn');
         btn.addEventListener('click', function () {{
-          var correo = document.getElementById('dv-correo').value.trim();
-          var codigo = document.getElementById('dv-codigo').value.trim();
+          var licenseKey = document.getElementById('dv-license-key').value.trim();
           var err = document.getElementById('dv-activacion-error');
           err.textContent = '';
 
-          if (!correo || !codigo) {{
-            err.textContent = 'Completa los dos campos.';
+          if (!licenseKey) {{
+            err.textContent = 'Ingresa la clave de licencia.';
             return;
           }}
 
           btn.disabled = true;
           btn.textContent = 'Activando…';
 
-          window.__TAURI__.core.invoke('activar_cuenta', {{ correo: correo, codigo: codigo }})
+          window.__TAURI__.core.invoke('activar_cuenta', {{ licenseKey: licenseKey }})
             .then(function () {{
               return window.__TAURI__.core.invoke('continuar_arranque');
             }})
             .catch(function (e) {{
-              err.textContent = typeof e === 'string' ? e : 'No se pudo activar la cuenta.';
+              err.textContent = typeof e === 'string' ? e : 'No se pudo activar la licencia.';
               btn.disabled = false;
               btn.textContent = 'Activar';
             }});
@@ -327,10 +325,8 @@ fn main() {
     tauri::Builder::default()
         .manage(PhpServer(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
-            licensing::activate_license,
-            licensing::check_saved_license,
-            supabase_licensing::activar_cuenta,
-            supabase_licensing::check_saved_account,
+            licensing::activar_cuenta,
+            licensing::check_saved_account,
             continuar_arranque,
         ])
         .setup(|app| {
@@ -354,7 +350,7 @@ fn main() {
                 std::thread::sleep(Duration::from_millis(400));
 
                 let status = tauri::async_runtime::block_on(
-                    supabase_licensing::check_saved_account(app_handle.clone()),
+                    licensing::check_saved_account(app_handle.clone()),
                 );
 
                 let valido = matches!(status, Ok(ref s) if s.valid);
@@ -368,15 +364,18 @@ fn main() {
                             Some("dispositivo_no_activo") | Some("cuenta_no_aprobada") => {
                                 Some("Esta cuenta o este equipo ya no tienen acceso. Contacta al administrador.".to_string())
                             }
+                            Some("licencia_invalida") => Some(
+                                "Esta licencia ya no es válida (cancelada o reembolsada). Contacta al administrador.".to_string(),
+                            ),
                             Some("gracia_offline_vencida") => Some(
-                                "Pasó más de una semana sin poder confirmar tu cuenta. Conéctate a internet e intenta de nuevo, o vuelve a activar.".to_string(),
+                                "Pasó más de una semana sin poder confirmar tu licencia. Conéctate a internet e intenta de nuevo, o vuelve a activar.".to_string(),
                             ),
                             Some("reloj_manipulado") => Some(
                                 "El reloj de este equipo no coincide con el esperado. Conectate a internet para revalidar.".to_string(),
                             ),
-                            Some(_) => Some("No se pudo confirmar tu cuenta. Intenta de nuevo.".to_string()),
+                            Some(_) => Some("No se pudo confirmar tu licencia. Intenta de nuevo.".to_string()),
                         },
-                        Err(_) => Some("No se pudo confirmar tu cuenta. Intenta de nuevo.".to_string()),
+                        Err(_) => Some("No se pudo confirmar tu licencia. Intenta de nuevo.".to_string()),
                     };
 
                     let show_handle = app_handle.clone();
