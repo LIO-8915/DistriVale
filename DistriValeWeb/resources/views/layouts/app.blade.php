@@ -507,7 +507,36 @@
            Actividad reciente y Accesos rápidos) el círculo se quedaba con
            su tamaño de antes, tocando o saliéndose de los bordes. */
         .dv-avance-donut-wrap { width: 100%; max-width: 210px; }
-        .dv-avance-item .fw-semibold { display: block; text-align: right; }
+        /* Leyenda de las donas (Avance de quincena / Distribución de saldo
+           por financiera): todo centrado y en el mismo eje siempre — antes
+           el nombre iba a la izquierda y el % a la derecha (justify-content:
+           between), así que un nombre largo o un monto con más dígitos
+           corría todo lo demás de lugar en vez de mantenerse alineado. El
+           nombre/financiera va en una píldora de vidrio (mismo look que
+           .dv-activity-amount) para que se lea bien encima del fondo. */
+        .dv-avance-item { text-align: center; }
+        .dv-avance-label {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .3rem .85rem; border-radius: 999px;
+            font-size: .8rem; font-weight: 700; color: #33415a;
+            background: rgba(255, 255, 255, .5);
+            border: 1px solid rgba(255, 255, 255, .6);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            backdrop-filter: blur(12px) saturate(180%);
+            box-shadow: 0 4px 10px rgba(30, 41, 59, .1), inset 0 1px 1px rgba(255, 255, 255, .6);
+        }
+        .dv-avance-values {
+            display: flex; justify-content: center; align-items: baseline;
+            gap: .5rem; margin-top: .35rem;
+        }
+        .dv-avance-values .fw-semibold { display: inline; }
+
+        /* Matriz cliente × financiera (Liquidación): un borde más marcado
+           en la primera columna de cada financiera (y antes de "Total") en
+           vez del mismo borde tenue de cualquier celda — sin esto, las 3
+           columnas (Cuota/Pago/Saldo) de una financiera se pegaban
+           visualmente con las de la siguiente. */
+        .dv-matrix-scroll .dv-matrix-group-start { border-left: 2px solid rgba(20, 30, 50, .22); }
         .table { margin-bottom: 0; }
         .table thead th {
             font-size: .78rem; text-transform: uppercase; letter-spacing: .04em;

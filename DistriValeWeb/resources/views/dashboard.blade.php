@@ -77,32 +77,31 @@
                 </div>
             </div>
             <div class="text-center text-muted small mt-2">de ${{ number_format($avanceQuincena['total'], 2) }} programado esta quincena</div>
-            {{-- Punto + nombre y porcentaje van en la misma línea; si el
-                 nombre es largo y no caben junto con el porcentaje, este
-                 baja solo (flex-wrap) a su propia línea — así un nombre
-                 largo termina en 3 líneas (nombre, porcentaje, saldo) sin
-                 necesidad de detectarlo aparte. El saldo siempre va debajo. --}}
-            <div class="d-flex flex-column gap-2 mt-3">
+            {{-- Nombre (en su píldora de vidrio) y, debajo, porcentaje +
+                 monto centrados en el mismo eje — se mantiene así sin
+                 importar qué tan largo sea el nombre o cuántos dígitos
+                 tenga el monto. --}}
+            <div class="d-flex flex-column gap-3 mt-3">
                 <div class="dv-avance-item">
-                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
-                        <span><span style="color:#2bc48a">●</span> Cobrado</span>
+                    <span class="dv-avance-label"><span style="color:#2bc48a">●</span> Cobrado</span>
+                    <div class="dv-avance-values">
                         <span class="text-muted">{{ $avanceQuincena['pct_cobrado'] }}%</span>
+                        <span class="fw-semibold">${{ number_format($avanceQuincena['cobrado'], 2) }}</span>
                     </div>
-                    <div class="fw-semibold">${{ number_format($avanceQuincena['cobrado'], 2) }}</div>
                 </div>
                 <div class="dv-avance-item">
-                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
-                        <span><span style="color:#4f7cff">●</span> Por cobrar</span>
+                    <span class="dv-avance-label"><span style="color:#4f7cff">●</span> Por cobrar</span>
+                    <div class="dv-avance-values">
                         <span class="text-muted">{{ $avanceQuincena['pct_por_cobrar'] }}%</span>
+                        <span class="fw-semibold">${{ number_format($avanceQuincena['por_cobrar'], 2) }}</span>
                     </div>
-                    <div class="fw-semibold">${{ number_format($avanceQuincena['por_cobrar'], 2) }}</div>
                 </div>
                 <div class="dv-avance-item">
-                    <div class="d-flex justify-content-between align-items-baseline flex-wrap">
-                        <span><span style="color:#ff5c72">●</span> Pendiente</span>
+                    <span class="dv-avance-label"><span style="color:#ff5c72">●</span> Pendiente</span>
+                    <div class="dv-avance-values">
                         <span class="text-muted">{{ $avanceQuincena['pct_pendiente'] }}%</span>
+                        <span class="fw-semibold">${{ number_format($avanceQuincena['pendiente'], 2) }}</span>
                     </div>
-                    <div class="fw-semibold">${{ number_format($avanceQuincena['pendiente'], 2) }}</div>
                 </div>
             </div>
         </div>

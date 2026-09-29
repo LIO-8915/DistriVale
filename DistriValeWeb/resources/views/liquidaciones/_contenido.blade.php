@@ -48,13 +48,15 @@
             <h6 class="mb-3">Distribución de saldo por financiera</h6>
             <canvas id="chartSaldoFinanciera" style="max-height:220px;"
                 data-chart="{{ json_encode(['labels' => $saldoPorFinanciera->pluck('nombre'), 'data' => $saldoPorFinanciera->map(fn ($f) => $f->saldo ?? 0)]) }}"></canvas>
-            <div class="d-flex flex-column gap-1 mt-3">
+            <div class="d-flex flex-column gap-3 mt-3">
                 @php $totalSaldo = $saldoPorFinanciera->sum('saldo'); @endphp
                 @foreach ($saldoPorFinanciera as $f)
-                    <div class="d-flex justify-content-between small">
-                        <span>{{ $f->nombre }}</span>
-                        <span class="text-muted">{{ $totalSaldo > 0 ? round(($f->saldo ?? 0) / $totalSaldo * 100) : 0 }}%</span>
-                        <span class="fw-semibold">${{ number_format($f->saldo ?? 0, 2) }}</span>
+                    <div class="dv-avance-item">
+                        <span class="dv-avance-label">{{ $f->nombre }}</span>
+                        <div class="dv-avance-values">
+                            <span class="text-muted">{{ $totalSaldo > 0 ? round(($f->saldo ?? 0) / $totalSaldo * 100) : 0 }}%</span>
+                            <span class="fw-semibold">${{ number_format($f->saldo ?? 0, 2) }}</span>
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -71,14 +73,14 @@
                         <tr>
                             <th rowspan="2" class="align-middle dv-matrix-pin">Cliente</th>
                             @foreach ($financieras as $f)
-                                <th colspan="3" class="text-center">{{ $f->nombre }}</th>
+                                <th colspan="3" class="text-center dv-matrix-group-start">{{ $f->nombre }}</th>
                             @endforeach
-                            <th rowspan="2" class="text-end align-middle">Total</th>
+                            <th rowspan="2" class="text-end align-middle dv-matrix-group-start">Total</th>
                             <th rowspan="2" class="align-middle">Estado</th>
                         </tr>
                         <tr>
                             @foreach ($financieras as $f)
-                                <th class="text-end">Cuota</th><th class="text-end">Pago</th><th class="text-end">Saldo</th>
+                                <th class="text-end dv-matrix-group-start">Cuota</th><th class="text-end">Pago</th><th class="text-end">Saldo</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -91,14 +93,14 @@
                                 @foreach ($financieras as $f)
                                     @php $d = $fila['financieras'][$f->id_financiera]; @endphp
                                     @if ($d)
-                                        <td class="text-end">${{ number_format($d['cuota'], 0) }}</td>
+                                        <td class="text-end dv-matrix-group-start">${{ number_format($d['cuota'], 0) }}</td>
                                         <td class="text-end">${{ number_format($d['pago'], 0) }}</td>
                                         <td class="text-end">${{ number_format($d['saldo'], 0) }}</td>
                                     @else
-                                        <td class="text-end text-muted">—</td><td class="text-end text-muted">—</td><td class="text-end text-muted">—</td>
+                                        <td class="text-end text-muted dv-matrix-group-start">—</td><td class="text-end text-muted">—</td><td class="text-end text-muted">—</td>
                                     @endif
                                 @endforeach
-                                <td class="text-end fw-bold">${{ number_format($fila['total_saldo'], 0) }}</td>
+                                <td class="text-end fw-bold dv-matrix-group-start">${{ number_format($fila['total_saldo'], 0) }}</td>
                                 <td>
                                     <span class="badge {{ $fila['oportuno'] ? 'bg-success' : '' }}" @if(!$fila['oportuno']) style="background:rgba(255,159,67,.16);color:#c97316;" @endif>
                                         {{ $fila['oportuno'] ? 'Oportuno' : 'Extemporáneo' }}
