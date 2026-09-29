@@ -290,6 +290,9 @@
             -webkit-backdrop-filter: blur(30px) saturate(220%);
             backdrop-filter: blur(30px) saturate(220%);
         }
+        /* El avatar es un <button> (abre el modal de perfil) — mismo reset
+           de estilos nativos de botón que ya usaba .dv-bell-glass. */
+        .dv-avatar-glass { border: 0; cursor: pointer; padding: 0; appearance: none; font: inherit; }
         .dv-avatar-glass .dv-avatar-inner { color: #fff; font-weight: 700; font-size: 1rem; }
         /* Mismo degradado diagonal que .card / "Quincena actual" en vez del
            relleno plano que tenía antes (se veía sólido, no como vidrio). */
@@ -330,6 +333,20 @@
         .glass-quick-btn.glass-fill-purple { background: linear-gradient(135deg, rgba(139, 107, 255, .55), rgba(169, 139, 255, .55)); }
         .glass-quick-btn.glass-fill-orange { background: linear-gradient(135deg, rgba(255, 159, 67, .55), rgba(255, 185, 118, .55)); }
         .glass-quick-btn.glass-fill-green { background: linear-gradient(135deg, rgba(43, 196, 138, .55), rgba(87, 217, 165, .55)); }
+
+        /* Selector de color del modal "Mi perfil": mismos 4 degradados que
+           el avatar/accesos rápidos, en círculos chicos — el anillo marca
+           cuál está elegido en cada momento, incluido justo después de
+           tocar otro (:has() reacciona solo, sin JS de por medio). */
+        .dv-color-swatch {
+            width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .5);
+            transition: transform .15s ease, border-color .15s ease;
+        }
+        .dv-color-swatch:hover { transform: scale(1.06); }
+        .dv-color-swatch:has(input:checked) {
+            border-color: #33415a; box-shadow: 0 0 0 3px rgba(51, 65, 90, .15), inset 0 1px 1px rgba(255, 255, 255, .5);
+        }
 
         /* Botones del header (@section('actions')): "Descargar PDF",
            "Registrar liquidación"/"Nuevo ..." y el botón circular de
@@ -806,12 +823,14 @@
                     <span class="dv-bell-inner{{ $vencimientos->count() > 0 ? ' has-alerts' : '' }}"><i class="bi bi-bell"></i></span>
                 </button>
                 <div class="dv-user">
-                    <div class="dv-glass-chip dv-avatar-glass glass-fill-blue" title="Elia Véliz — Administradora" data-bs-toggle="tooltip" data-bs-placement="bottom">
-                        <span class="dv-avatar-inner">EV</span>
-                    </div>
+                    <button type="button" class="dv-glass-chip dv-avatar-glass glass-fill-{{ $perfilUsuario->color }}"
+                            data-bs-toggle="modal" data-bs-target="#modalPerfil"
+                            title="Editar perfil">
+                        <span class="dv-avatar-inner">{{ $perfilUsuario->iniciales() }}</span>
+                    </button>
                     <div class="dv-user-text">
-                        <div class="name">Elia Véliz</div>
-                        <div class="role">Administradora</div>
+                        <div class="name">{{ $perfilUsuario->nombre }}</div>
+                        <div class="role">{{ $perfilUsuario->cargo }}</div>
                     </div>
                 </div>
             </div>
@@ -869,6 +888,49 @@
                         <p class="text-muted text-center py-4 mb-0">Sin pagos vencidos por el momento.</p>
                     @endforelse
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Perfil de quien usa esta instalación (sin login por usuario, así
+         que es un único perfil compartido) — se abre desde el avatar de la
+         barra superior. --}}
+    <div class="modal fade" id="modalPerfil" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 18px; border: none;">
+                <form method="POST" action="{{ route('perfil.update') }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-header">
+                        <h5 class="modal-title">Mi perfil</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" class="form-control" value="{{ old('nombre', $perfilUsuario->nombre) }}" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cargo</label>
+                            <input type="text" name="cargo" class="form-control" value="{{ old('cargo', $perfilUsuario->cargo) }}" maxlength="100" placeholder="Ej. Administradora">
+                        </div>
+                        <div class="mb-1">
+                            <label class="form-label d-block">Color del avatar</label>
+                            <div class="d-flex gap-2">
+                                @foreach (\App\Models\PerfilUsuario::COLORES as $color)
+                                    <label class="dv-color-swatch glass-fill-{{ $color }}">
+                                        <input type="radio" name="color" value="{{ $color }}" class="visually-hidden"
+                                               {{ old('color', $perfilUsuario->color) === $color ? 'checked' : '' }}>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary dv-btn-cancelar" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
