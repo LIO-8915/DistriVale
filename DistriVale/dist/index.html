@@ -30,6 +30,11 @@
         content: ""; position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
         width: min(70vmax, 900px); height: min(70vmax, 900px);
         background: #3558a4; border-radius: 50%; filter: blur(140px); opacity: .65;
+        /* Puramente decorativo — sin esto, este círculo (fixed, sigue
+           existiendo aunque main.rs reemplace document.body.innerHTML con
+           la pantalla de activación) queda flotando encima del formulario
+           y se roba los clics/el foco del textbox y el botón. */
+        pointer-events: none;
     }
     .dv-splash { text-align: center; position: relative; z-index: 1; }
     /* "Sol naciente": sube rápido desde abajo, decelerando al acercarse al
