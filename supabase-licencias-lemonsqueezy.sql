@@ -153,7 +153,7 @@ exception
 end;
 $$;
 
-grant execute on function registrar_cuenta_licencia(text, text, text, integer) to anon;
+grant execute on function registrar_cuenta_licencia(text, text, text, text, integer) to anon;
 
 -- --- 5. registrar_evento_monitoreo(): logs que sube el módulo local --
 --
