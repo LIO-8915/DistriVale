@@ -24,6 +24,16 @@ mod licensing;
 mod monitoreo_local;
 mod supabase_licensing;
 
+/// Interruptor único para todo el sistema de licencias/activación de
+/// cuentas: en `false`, la app arranca directo, sin pedir ninguna license
+/// key ni bloquear por dispositivo/tiempo — para poder repartir el .exe
+/// entre varios equipos/personas durante la etapa de depuración sin tener
+/// que activar cada máquina. El código de licensing.rs/supabase_licensing.rs
+/// y la pantalla de activación (más abajo) se dejan intactos a propósito:
+/// para volver a exigir la licencia, basta con poner esto en `true` de
+/// nuevo — no hace falta reescribir nada.
+const LICENCIA_ACTIVADA: bool = false;
+
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
@@ -495,6 +505,11 @@ fn main() {
                 // instante, sin red) el eval() puede correr contra una
                 // página que todavía no existe y quedarse sin efecto.
                 std::thread::sleep(Duration::from_millis(400));
+
+                if !LICENCIA_ACTIVADA {
+                    iniciar_app_principal(app_handle);
+                    return;
+                }
 
                 // Solo existe en builds de debug — ver el comentario en
                 // licensing.rs. En release esta función siempre da false.
