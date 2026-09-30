@@ -24,6 +24,8 @@ class Vale extends Model
         'total_quincenas',
         'quincena_actual',
         'saldo_pendiente',
+        'recargo_acumulado',
+        'quincenas_vencidas',
         'estado',
         'fecha_ultimo_pago',
     ];
@@ -32,6 +34,7 @@ class Vale extends Model
         'monto_original' => 'decimal:2',
         'cuota_quincenal' => 'decimal:2',
         'saldo_pendiente' => 'decimal:2',
+        'recargo_acumulado' => 'decimal:2',
         'fecha_disposicion' => 'date',
         'fecha_ultimo_pago' => 'datetime',
     ];
@@ -57,22 +60,87 @@ class Vale extends Model
     }
 
     /**
+     * El valor guardado en `estado` sigue siendo EN_MORA (cambiarlo
+     * rompería filtros/consultas ya escritos contra ese valor) — esto es
+     * solo la etiqueta que se le muestra a quien usa la app, más fácil de
+     * leer que el nombre interno de la columna.
+     */
+    public static function estadoTexto(string $estado): string
+    {
+        return match ($estado) {
+            'ACTIVO' => 'Activo',
+            'EN_MORA' => 'Demora',
+            'LIQUIDADO' => 'Liquidado',
+            default => $estado,
+        };
+    }
+
+    public function estadoLegible(): string
+    {
+        return static::estadoTexto($this->estado);
+    }
+
+    /**
+     * Lo que en realidad toca cubrir en el siguiente pago: la cuota normal
+     * más cualquier recargo acumulado por cuotas incompletas o no pagadas
+     * de quincenas anteriores (ver registrarPago() y App\Support\Mora).
+     */
+    public function montoProximoPago(): float
+    {
+        return round((float) $this->cuota_quincenal + (float) $this->recargo_acumulado, 2);
+    }
+
+    /**
      * Vale que en este corte paga su última cuota: sigue ACTIVO (esa cuota
-     * todavía se cobra) y pasa a LIQUIDADO al confirmarse el pago.
+     * todavía se cobra) y pasa a LIQUIDADO al confirmarse el pago. Ya no
+     * depende de quincena_actual vs total_quincenas — un crédito con
+     * cuotas atrasadas puede tardar más quincenas de las originalmente
+     * planeadas en liquidarse, así que lo único que de verdad determina si
+     * es el último pago es si ese monto alcanza para saldar lo que queda.
      */
     public function esUltimoPago(): bool
     {
-        return $this->estado === 'ACTIVO'
-            && $this->quincena_actual >= $this->total_quincenas
-            && (float) $this->saldo_pendiente <= (float) $this->cuota_quincenal + 0.01;
+        return $this->estado !== 'LIQUIDADO'
+            && (float) $this->saldo_pendiente <= $this->montoProximoPago() + 0.01;
     }
 
+    /**
+     * Registra un abono. Si no alcanza a cubrir cuota + recargo_acumulado
+     * (pago incompleto), lo que faltó genera un recargo nuevo (el
+     * porcentaje de la financiera sobre ese faltante) que se suma al saldo
+     * total y queda pendiente para exigirse en el siguiente pago — y si
+     * vuelve a faltar, ese recargo entra otra vez a la base sobre la que se
+     * calcula el próximo, por eso se va acumulando. Si el pago sí alcanza,
+     * el cliente queda al día y el recargo se limpia.
+     */
     public function registrarPago(float $monto): void
     {
-        $this->saldo_pendiente = max(0, (float) $this->saldo_pendiente - $monto);
-        $this->quincena_actual = min($this->total_quincenas, $this->quincena_actual + 1);
-        $this->estado = $this->saldo_pendiente <= 0 ? 'LIQUIDADO' : $this->estado;
+        $montoEsperado = $this->montoProximoPago();
+        $this->saldo_pendiente = max(0, round((float) $this->saldo_pendiente - $monto, 2));
+
+        if ($monto + 0.01 < $montoEsperado) {
+            $faltante = round($montoEsperado - $monto, 2);
+            $recargoPct = (float) ($this->financiera?->recargo_porcentaje ?? 0);
+            $recargo = round($faltante * $recargoPct / 100, 2);
+
+            $this->recargo_acumulado = round($faltante + $recargo, 2);
+            $this->saldo_pendiente = round((float) $this->saldo_pendiente + $recargo, 2);
+        } else {
+            $this->recargo_acumulado = 0;
+            $this->quincenas_vencidas = 0;
+            if ($this->estado === 'EN_MORA') {
+                $this->estado = 'ACTIVO';
+            }
+        }
+
+        $this->quincena_actual = $this->quincena_actual + 1;
         $this->fecha_ultimo_pago = now();
+
+        if ($this->saldo_pendiente <= 0) {
+            $this->estado = 'LIQUIDADO';
+            $this->recargo_acumulado = 0;
+        }
+
         $this->save();
     }
 }

@@ -44,7 +44,7 @@
             <div class="d-flex align-items-center gap-3">
                 <span class="stat-icon icon-orange"><i class="bi bi-exclamation-triangle-fill"></i></span>
                 <div class="stat-info">
-                    <div class="text-muted small">Activos / En mora</div>
+                    <div class="text-muted small">Activos / Demora</div>
                     <div class="stat-value">{{ $valesActivos }} <span class="text-danger fs-6">/ {{ $valesEnMora }}</span></div>
                 </div>
             </div>

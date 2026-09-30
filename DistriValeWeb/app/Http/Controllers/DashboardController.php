@@ -9,6 +9,7 @@ use App\Models\LiquidacionQuincena;
 use App\Models\Vale;
 use App\Support\Quincena;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -51,14 +52,20 @@ class DashboardController extends Controller
 
     private function calcularAvanceQuincena(array $quincena): array
     {
-        $total = (float) Vale::whereIn('estado', ['ACTIVO', 'EN_MORA'])->sum('cuota_quincenal');
+        // cuota_quincenal + recargo_acumulado: lo que en realidad toca
+        // cobrar ahora, no solo la cuota base — un vale con recargo por
+        // cuotas atrasadas pesa más en "programado"/"pendiente" que su
+        // cuota original (ver Vale::montoProximoPago()).
+        $montoEsperadoSql = DB::raw('cuota_quincenal + recargo_acumulado');
+
+        $total = (float) Vale::whereIn('estado', ['ACTIVO', 'EN_MORA'])->sum($montoEsperadoSql);
 
         $cobrado = (float) DetalleReciboVale::whereHas(
             'recibo',
             fn ($q) => $q->where('periodo_quincena', $quincena['periodo_quincena'])
         )->sum('monto_pago');
 
-        $pendiente = (float) Vale::where('estado', 'EN_MORA')->sum('cuota_quincenal');
+        $pendiente = (float) Vale::where('estado', 'EN_MORA')->sum($montoEsperadoSql);
         $porCobrar = max(0, $total - $cobrado - $pendiente);
 
         $pct = fn (float $parte) => $total > 0 ? round($parte / $total * 100) : 0;
@@ -102,7 +109,8 @@ class DashboardController extends Controller
             ->map(fn ($v) => [
                 'icono' => 'icono-vale-atrasado.webp',
                 'titulo' => 'Pago vencido', 'sub' => $v->cliente->nombre_completo ?? '—',
-                'monto' => (float) $v->cuota_quincenal, 'positivo' => false, 'fecha' => $v->updated_at,
+                'monto' => $v->montoProximoPago(), 'positivo' => false, 'fecha' => $v->updated_at,
+                'id_vale' => $v->id_vale,
             ]);
 
         return $pagos->concat($creditos)->concat($depositos)->concat($vencidos)

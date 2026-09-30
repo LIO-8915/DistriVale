@@ -57,7 +57,7 @@
                                 @if ($vale->esUltimoPago())
                                     <span class="pdf-badge pdf-badge-ULTIMO">Último pago</span>
                                 @else
-                                    <span class="pdf-badge pdf-badge-{{ $vale->estado }}">{{ str_replace('_', ' ', $vale->estado) }}</span>
+                                    <span class="pdf-badge pdf-badge-{{ $vale->estado }}">{{ $vale->estadoLegible() }}</span>
                                 @endif
                             </td>
                         </tr>
@@ -72,7 +72,7 @@
                 </tbody>
             @empty
                 <tbody>
-                    <tr><td colspan="7" class="pdf-muted">Sin créditos activos o en mora.</td></tr>
+                    <tr><td colspan="7" class="pdf-muted">Sin créditos activos o en demora.</td></tr>
                 </tbody>
             @endforelse
             @if ($cliente->vales->isNotEmpty())

@@ -177,11 +177,13 @@ class LiquidacionController extends Controller
                     continue;
                 }
 
-                $cuota = (float) $vales->sum('cuota_quincenal');
+                // cuota_quincenal + recargo_acumulado: lo que de verdad toca
+                // cobrar, no solo la cuota base (ver Vale::montoProximoPago()).
+                $cuota = (float) $vales->sum(fn ($v) => $v->montoProximoPago());
                 // Un vale liquidado en el periodo ya tiene registrado su último
                 // pago aunque no haya recibo de por medio (viene del estado de cuenta).
                 $pago = (float) $vales->sum(fn ($v) => $pagosPorVale[$v->id_vale]
-                    ?? ($v->estado === 'LIQUIDADO' ? (float) $v->cuota_quincenal : 0));
+                    ?? ($v->estado === 'LIQUIDADO' ? $v->montoProximoPago() : 0));
                 $saldo = (float) $vales->sum('saldo_pendiente');
 
                 $fila['financieras'][$f->id_financiera] = ['cuota' => $cuota, 'pago' => $pago, 'saldo' => $saldo];

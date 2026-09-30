@@ -19,11 +19,23 @@
                     <td>${{ number_format($vale->monto_original, 2) }}</td>
                     <td class="d-none d-xl-table-cell">${{ number_format($vale->cuota_quincenal, 2) }}</td>
                     <td>{{ $vale->numeroPagoTexto() }}</td>
-                    <td>${{ number_format($vale->saldo_pendiente, 2) }}</td>
-                    <td><span class="badge badge-estado-{{ $vale->estado }}">{{ $vale->estado }}</span></td>
+                    <td>
+                        ${{ number_format($vale->saldo_pendiente, 2) }}
+                        @if ($vale->recargo_acumulado > 0)
+                            <div class="text-danger small">+${{ number_format($vale->recargo_acumulado, 2) }} recargo</div>
+                        @endif
+                    </td>
+                    <td><span class="badge badge-estado-{{ $vale->estado }}">{{ $vale->estadoLegible() }}</span></td>
                     <td class="text-end">
-                        <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
-                        <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" data-confirm="¿Eliminar este vale?">
+                        <a href="{{ route('vales.show', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                        @if ($vale->estado === 'LIQUIDADO')
+                            <form method="GET" action="{{ route('vales.edit', $vale) }}" class="d-inline" data-confirm="Este crédito ya está liquidado. ¿Seguro que quieres modificarlo?">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                            </form>
+                        @else
+                            <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                        @endif
+                        <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" data-confirm="¿Eliminar este crédito?">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                         </form>

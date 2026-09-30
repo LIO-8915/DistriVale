@@ -42,7 +42,14 @@ class ValeController extends Controller
         $data['saldo_pendiente'] = $data['monto_original'];
         Vale::create($data);
 
-        return redirect()->route('vales.index')->with('success', 'Vale registrado correctamente.');
+        return redirect()->route('vales.index')->with('success', 'Crédito registrado correctamente.');
+    }
+
+    public function show(Vale $vale)
+    {
+        $vale->load(['cliente', 'financiera', 'detallesRecibo' => fn ($q) => $q->with('recibo')->latest('created_at')]);
+
+        return view('vales.show', compact('vale'));
     }
 
     public function edit(Vale $vale)
@@ -55,14 +62,14 @@ class ValeController extends Controller
         $data = $this->validated($request);
         $vale->update($data);
 
-        return redirect()->route('vales.index')->with('success', 'Vale actualizado correctamente.');
+        return redirect()->route('vales.index')->with('success', 'Crédito actualizado correctamente.');
     }
 
     public function destroy(Vale $vale)
     {
         $vale->delete();
 
-        return redirect()->route('vales.index')->with('success', 'Vale eliminado.');
+        return redirect()->route('vales.index')->with('success', 'Crédito eliminado.');
     }
 
     private function form(Vale $vale)

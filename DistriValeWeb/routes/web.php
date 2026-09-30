@@ -28,7 +28,7 @@ Route::resource('financieras', FinancieraController::class)->except(['show']);
 Route::resource('clientes', ClienteController::class);
 Route::post('clientes/{cliente}/notas', [ClienteController::class, 'storeNota'])->name('clientes.notas.store');
 Route::get('clientes/{cliente}/pdf', [ClienteController::class, 'pdf'])->name('clientes.pdf');
-Route::resource('vales', ValeController::class)->except(['show']);
+Route::resource('vales', ValeController::class);
 
 Route::controller(ReciboController::class)->prefix('recibos')->name('recibos.')->group(function () {
     Route::get('/', 'index')->name('index');

@@ -62,21 +62,27 @@ class ReciboController extends Controller
             ]);
 
             foreach ($cliente->vales as $vale) {
-                $cuota = (float) $vale->cuota_quincenal;
+                // Lo que en realidad toca cobrar ahora: la cuota normal más
+                // cualquier recargo que ya traiga acumulado de quincenas
+                // incompletas o no pagadas (ver Vale::montoProximoPago()).
+                $montoEsperado = $vale->montoProximoPago();
                 $recargoPct = (float) ($vale->financiera->recargo_porcentaje ?? 0);
-                $cuotaExtemporanea = round($cuota * (1 + $recargoPct / 100), 2);
-                $nuevoSaldo = max(0, (float) $vale->saldo_pendiente - $cuota);
+                // Si esto TAMBIÉN se paga incompleto o no se paga, así de
+                // caro sale la siguiente — mismo cálculo que aplicará
+                // Vale::registrarPago()/App\Support\Mora si de verdad pasa.
+                $montoSiVuelveAFallar = round($montoEsperado * (1 + $recargoPct / 100), 2);
+                $nuevoSaldo = max(0, (float) $vale->saldo_pendiente - $montoEsperado);
 
                 DetalleReciboVale::create([
                     'id_recibo' => $recibo->id_recibo,
                     'id_vale' => $vale->id_vale,
-                    'monto_pago' => $cuota,
+                    'monto_pago' => $montoEsperado,
                     'numero_pago_texto' => $vale->numeroPagoTexto(),
                     'nuevo_saldo' => $nuevoSaldo,
                 ]);
 
-                $totalOportuno += $cuota;
-                $totalExtemporaneo += $cuotaExtemporanea;
+                $totalOportuno += $montoEsperado;
+                $totalExtemporaneo += $montoSiVuelveAFallar;
             }
 
             $recibo->update([
@@ -102,7 +108,7 @@ class ReciboController extends Controller
      */
     public function confirmarPago(ReciboConsolidado $recibo)
     {
-        $recibo->load('detalles.vale');
+        $recibo->load('detalles.vale.financiera');
 
         DB::transaction(function () use ($recibo) {
             foreach ($recibo->detalles as $detalle) {

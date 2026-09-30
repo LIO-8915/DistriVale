@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $vale->exists ? 'Editar vale' : 'Nuevo vale')
+@section('title', $vale->exists ? 'Editar crédito' : 'Nuevo crédito')
 
 @section('content')
 <div class="card p-4" style="max-width: 640px;">
@@ -69,7 +69,7 @@
                 <label class="form-label">Estado</label>
                 <select name="estado" class="form-select" required>
                     @foreach (['ACTIVO', 'EN_MORA', 'LIQUIDADO'] as $estado)
-                        <option value="{{ $estado }}" @selected(old('estado', $vale->estado ?? 'ACTIVO') == $estado)>{{ $estado }}</option>
+                        <option value="{{ $estado }}" @selected(old('estado', $vale->estado ?? 'ACTIVO') == $estado)>{{ \App\Models\Vale::estadoTexto($estado) }}</option>
                     @endforeach
                 </select>
             </div>

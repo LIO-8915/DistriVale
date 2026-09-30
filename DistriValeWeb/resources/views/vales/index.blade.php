@@ -1,8 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Vales')
+@section('title', 'Créditos')
+@section('subtitle', 'Cada fila es un crédito — entra a uno para ver su historial de pagos quincenales (vales).')
 @section('actions')
-    <a href="{{ route('vales.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nuevo vale</a>
+    <a href="{{ route('vales.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nuevo crédito</a>
 @endsection
 
 @section('content')
@@ -24,7 +25,7 @@
                 <select id="valesEstado" class="form-select form-select-sm">
                     <option value="">Todos los estados</option>
                     <option value="ACTIVO" @selected(request('estado') == 'ACTIVO')>Activo</option>
-                    <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>En mora</option>
+                    <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>Demora</option>
                     <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
                 </select>
             </div>

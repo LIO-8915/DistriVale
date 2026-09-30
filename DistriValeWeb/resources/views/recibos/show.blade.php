@@ -7,6 +7,7 @@
         @csrf
         <button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Confirmar pago</button>
     </form>
+    <a href="{{ route('recibos.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
 @endsection
 
 @section('content')

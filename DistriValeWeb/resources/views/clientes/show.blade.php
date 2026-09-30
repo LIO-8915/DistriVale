@@ -91,7 +91,7 @@
                         </div>
                         @foreach ($grupo as $vale)
                             @php $avance = $vale->monto_original > 0 ? round((1 - $vale->saldo_pendiente / $vale->monto_original) * 100) : 0; @endphp
-                            <div class="d-flex align-items-center justify-content-between py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                            <a href="{{ route('vales.show', $vale) }}" class="d-flex align-items-center justify-content-between py-2 text-decoration-none text-reset {{ !$loop->last ? 'border-bottom' : '' }}">
                                 <div style="min-width:90px;"><span class="fw-semibold">{{ $vale->folio_vale }}</span></div>
                                 <div style="min-width:100px;">${{ number_format($vale->monto_original, 2) }}</div>
                                 <div style="min-width:100px;">${{ number_format($vale->saldo_pendiente, 2) }}</div>
@@ -101,7 +101,7 @@
                                     </div>
                                 </div>
                                 <div style="min-width:70px;" class="text-end"><span class="badge badge-estado-{{ $vale->estado }}">{{ $avance }}%</span></div>
-                            </div>
+                            </a>
                         @endforeach
                     </div>
                 @empty
@@ -115,7 +115,7 @@
                     <tbody>
                         @forelse ($cliente->vales->flatMap->detallesRecibo->sortByDesc('created_at') as $pago)
                             <tr>
-                                <td>{{ $pago->vale->folio_vale }}</td>
+                                <td><a href="{{ route('vales.show', $pago->vale) }}" class="text-decoration-none">{{ $pago->vale->folio_vale }}</a></td>
                                 <td>{{ $pago->vale->financiera->nombre }}</td>
                                 <td>{{ $pago->numero_pago_texto }}</td>
                                 <td class="text-end text-success fw-semibold">${{ number_format($pago->monto_pago, 2) }}</td>

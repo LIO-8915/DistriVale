@@ -509,6 +509,11 @@
             box-shadow: inset 0 1px 1px rgba(255, 255, 255, .5);
         }
         .dv-activity-icon img { width: 19px; height: 19px; }
+        /* Cada fila del modal de "Pagos vencidos" ahora es un link al vale
+           correspondiente — este hover es lo único que avisa que se puede
+           hacer clic, ya que se ve igual que antes de tocarlo. */
+        .dv-vencimiento-item { border-radius: 10px; padding-left: .5rem; padding-right: .5rem; margin: 0 -.5rem; transition: background .15s ease; }
+        .dv-vencimiento-item:hover { background: rgba(79, 124, 255, .08); }
         .dv-activity-amount {
             padding: .3rem .75rem; border-radius: 999px; font-weight: 700; font-size: .92rem;
             background: rgba(255, 255, 255, .5);
@@ -874,7 +879,7 @@
                 </div>
                 <div class="modal-body">
                     @forelse ($vencimientos as $v)
-                        <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                        <a href="{{ route('vales.show', $v) }}" class="d-flex justify-content-between align-items-center py-2 text-decoration-none text-reset dv-vencimiento-item {{ !$loop->last ? 'border-bottom' : '' }}">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="dv-activity-icon"><img src="{{ asset('images/icono-vale-atrasado.webp') }}" alt=""></span>
                                 <div>
@@ -882,8 +887,8 @@
                                     <div class="text-muted small">{{ $v->financiera->nombre }} · Vale {{ $v->folio_vale }}</div>
                                 </div>
                             </div>
-                            <div class="dv-activity-amount text-danger">${{ number_format($v->cuota_quincenal, 2) }}</div>
-                        </div>
+                            <div class="dv-activity-amount text-danger">${{ number_format($v->montoProximoPago(), 2) }}</div>
+                        </a>
                     @empty
                         <p class="text-muted text-center py-4 mb-0">Sin pagos vencidos por el momento.</p>
                     @endforelse
