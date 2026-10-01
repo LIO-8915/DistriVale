@@ -3,7 +3,9 @@
 @section('title', $financiera->exists ? 'Editar financiera' : 'Nueva financiera')
 
 @section('content')
-<div class="card p-4" style="max-width: 520px;">
+<div class="row justify-content-center">
+<div class="col-xxl-5 col-xl-6 col-lg-7 col-md-9">
+<div class="card p-4">
     <form action="{{ $financiera->exists ? route('financieras.update', $financiera) : route('financieras.store') }}" method="POST">
         @csrf
         @if ($financiera->exists) @method('PUT') @endif
@@ -34,5 +36,7 @@
             <a href="{{ route('financieras.index') }}" class="btn btn-outline-secondary dv-btn-cancelar">Cancelar</a>
         </div>
     </form>
+</div>
+</div>
 </div>
 @endsection

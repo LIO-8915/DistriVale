@@ -3,7 +3,9 @@
 @section('title', $vale->exists ? 'Editar crédito' : 'Nuevo crédito')
 
 @section('content')
-<div class="card p-4" style="max-width: 640px;">
+<div class="row justify-content-center">
+<div class="col-xxl-7 col-xl-8 col-lg-9 col-md-11">
+<div class="card p-4">
     <div id="valeFormError" class="alert alert-danger d-none"></div>
 
     <form action="{{ $vale->exists ? route('vales.update', $vale) : route('vales.store') }}" method="POST" id="valeForm" novalidate>
@@ -89,6 +91,8 @@
             <a href="{{ route('vales.index') }}" class="btn btn-outline-secondary dv-btn-cancelar">Cancelar</a>
         </div>
     </form>
+</div>
+</div>
 </div>
 
 @push('scripts')

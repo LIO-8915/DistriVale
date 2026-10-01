@@ -724,16 +724,47 @@
             -webkit-backdrop-filter: blur(14px) saturate(200%); backdrop-filter: blur(14px) saturate(200%);
         }
 
-        /* Icon-rail sidebar: below 1200px there isn't room to spare 232px of
-           permanent label text. Icons stay, labels collapse (still reachable
-           via each link's native title="" tooltip on hover). */
-        @media (max-width: 1199.98px) {
+        /* Icon-rail sidebar: por debajo de ~1367px (1280 y 1366 de ancho son
+           las resoluciones de oficina más comunes que todavía no tienen
+           1080p) no sobra espacio para los 232px fijos de texto. Antes el
+           quiebre era 1200px — a 1280px de ancho la sidebar se quedaba
+           completa con su texto, restándole ~230px al contenido justo en
+           la resolución donde más se necesitan. Iconos se quedan, las
+           etiquetas colapsan (siguen alcanzables con el title="" al pasar
+           el mouse). */
+        @media (max-width: 1366.98px) {
             :root { --dv-sidebar-w: 72px; }
             .dv-sidebar .brand { justify-content: center; padding-left: .5rem; padding-right: .5rem; }
             .dv-sidebar a { justify-content: center; padding: .8rem; }
             .dv-sidebar a i { width: auto; font-size: 1.3rem; }
             .dv-sidebar-footer { justify-content: center; padding-left: .5rem; padding-right: .5rem; }
             .dv-sidebar .dv-label { display: none; }
+        }
+
+        /* Pantallas bajas (1366x768, 1600x900 y sobre todo 1280x720 — oficinas
+           con equipos no tan actuales): el diseño está pensado dando por
+           sentado 1080px de alto o más; a 720-900px esa misma cantidad de
+           padding/márgenes entre topbar, tarjetas y tablas se acumula rápido
+           y obliga a hacer scroll para lo que en un monitor más alto se ve
+           de un vistazo. Se aprieta el ritmo vertical sin tocar el tamaño de
+           letra — la legibilidad del texto no depende del espacio que lo
+           rodea. */
+        @media (max-height: 950px) {
+            .dv-topbar { padding: .7rem 1.2rem; margin-bottom: 1.1rem; }
+            .dv-main { padding-top: 1rem; }
+            .card.p-3 { padding: .75rem !important; }
+            .card.p-4 { padding: 1.1rem !important; }
+            .table thead th { padding: .7rem .9rem; }
+            .table td { padding: .65rem .9rem; }
+        }
+
+        /* Mismo criterio que arriba pero por ANCHO: a 1280-1366px (ya con la
+           sidebar colapsada a solo íconos) las tablas con muchas columnas —
+           la matriz de Liquidación, Vales, Clientes — todavía se sienten
+           apretadas con el padding pensado para pantallas más anchas. */
+        @media (max-width: 1400px) {
+            .table thead th { padding: .85rem 1rem; }
+            .table td { padding: .8rem 1rem; }
         }
 
         /* Narrow window: the admin's own name/role competes with the screen

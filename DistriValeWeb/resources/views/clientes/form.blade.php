@@ -3,7 +3,9 @@
 @section('title', $cliente->exists ? 'Editar cliente' : 'Nuevo cliente')
 
 @section('content')
-<div class="card p-4" style="max-width: 560px;">
+<div class="row justify-content-center">
+<div class="col-xxl-6 col-xl-7 col-lg-8 col-md-9">
+<div class="card p-4">
     <form action="{{ $cliente->exists ? route('clientes.update', $cliente) : route('clientes.store') }}" method="POST">
         @csrf
         @if ($cliente->exists) @method('PUT') @endif
@@ -33,5 +35,7 @@
             <a href="{{ route('clientes.index') }}" class="btn btn-outline-secondary dv-btn-cancelar">Cancelar</a>
         </div>
     </form>
+</div>
+</div>
 </div>
 @endsection
