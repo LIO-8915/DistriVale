@@ -2,7 +2,19 @@
 
 Aplicación de escritorio (Tauri + Laravel) para administrar clientes, créditos, cobranza y liquidaciones de un negocio de préstamos.
 
-## Versión actual: v0.9.8
+## Versión actual: v0.9.9.1
+
+Acceso remoto desde celulares/iPad, interfaz móvil y recibos consolidados por crédito. (Cargo y Tauri exigen versiones de 3 números, así que `Cargo.toml` y `tauri.conf.json` llevan `0.9.9-1`; la rama y este README la llaman v0.9.9.1.)
+
+**Acceso remoto por red local**: un iPad o celular abre `http://<IP de la PC>:8712` y se empareja con un código de 6 dígitos que la PC muestra en un modal (con parpadeo y sonido); el modal aparece aunque el acceso remoto se encienda sin recargar la ventana. Por defecto está apagado, se apaga solo al cerrar la app y SQLite pasa a modo WAL para que varios dispositivos escriban a la vez. Ver `ARQUITECTURA_TAURI.md` §6.2 y §6.3.
+
+**Interfaz para celulares**: barra inferior, tablas apiladas, "jalar para actualizar" y aviso de conexión perdida; en la vista remota, si la conexión se pierde ~10 s se tapa la app y al volver se regresa a la pantalla de código en lugar de dejar la vista congelada. El PDF "Relación de cobranza" ya no encima las tarjetas de cliente (dompdf no maneja bien columnas con `float`: ahora es una tabla). Ver §6.4 y §6.6.
+
+**Recibo consolidado**: "Generar recibo" ahora es cliente → créditos activos o en mora → monto a abonar por crédito (los clientes sin nada pendiente no aparecen), con un botón "+ Agregar otro recibo" para armar hasta 8 recibos independientes en la misma pantalla (cada uno con su cliente, sin repetir créditos entre ellos, con "Separar por financiera", resumen fijo en celular y una página final con enlaces y "Copiar todo"). El detalle del recibo muestra financiera, folio, número de pago, nuevo saldo y totales por financiera. Ver §6.5.
+
+**Tema contrastado opcional**: en el perfil se puede activar un tema de mayor contraste; viene apagado y el diseño original no cambia.
+
+## Versión anterior: v0.9.8
 
 Dos frentes: la lógica de cobranza/mora y el rendimiento del servidor local.
 
