@@ -30,7 +30,6 @@
             <thead>
                 <tr>
                     <th>Folio</th>
-                    <th>Fecha</th>
                     <th class="pdf-num">Monto original</th>
                     <th class="pdf-num">Cuota quincenal</th>
                     <th class="pdf-num">Saldo pendiente</th>
@@ -43,12 +42,11 @@
             @forelse ($cliente->vales->groupBy('financiera.nombre') as $nombre => $grupo)
                 <tbody>
                     <tr class="pdf-group-row">
-                        <td colspan="7">{{ $nombre }}</td>
+                        <td colspan="6">{{ $nombre }}</td>
                     </tr>
                     @foreach ($grupo as $vale)
                         <tr>
                             <td>{{ $vale->folio_vale }}</td>
-                            <td>{{ $vale->fecha_disposicion?->format('d/m/Y') ?? '—' }}</td>
                             <td class="pdf-num">${{ number_format($vale->monto_original, 2) }}</td>
                             <td class="pdf-num">${{ number_format($vale->cuota_quincenal, 2) }}</td>
                             <td class="pdf-num">${{ number_format($vale->saldo_pendiente, 2) }}</td>
@@ -63,7 +61,7 @@
                         </tr>
                     @endforeach
                     <tr class="pdf-subtotal-row">
-                        <td colspan="2">Subtotal {{ $nombre }} &middot; {{ $grupo->count() }} {{ $grupo->count() === 1 ? 'vale' : 'vales' }}</td>
+                        <td>Subtotal {{ $nombre }} &middot; {{ $grupo->count() }} {{ $grupo->count() === 1 ? 'vale' : 'vales' }}</td>
                         <td class="pdf-num">${{ number_format($grupo->sum('monto_original'), 2) }}</td>
                         <td class="pdf-num">${{ number_format($grupo->sum('cuota_quincenal'), 2) }}</td>
                         <td class="pdf-num">${{ number_format($grupo->sum('saldo_pendiente'), 2) }}</td>
@@ -72,13 +70,13 @@
                 </tbody>
             @empty
                 <tbody>
-                    <tr><td colspan="7" class="pdf-muted">Sin créditos activos o en demora.</td></tr>
+                    <tr><td colspan="6" class="pdf-muted">Sin créditos activos o en mora.</td></tr>
                 </tbody>
             @endforelse
             @if ($cliente->vales->isNotEmpty())
                 <tfoot>
                     <tr class="pdf-total-row">
-                        <td colspan="2">TOTAL GENERAL &middot; {{ $cliente->vales->count() }} {{ $cliente->vales->count() === 1 ? 'vale' : 'vales' }}</td>
+                        <td>TOTAL GENERAL &middot; {{ $cliente->vales->count() }} {{ $cliente->vales->count() === 1 ? 'vale' : 'vales' }}</td>
                         <td class="pdf-num">${{ number_format($cliente->vales->sum('monto_original'), 2) }}</td>
                         <td class="pdf-num">${{ number_format($cliente->vales->sum('cuota_quincenal'), 2) }}</td>
                         <td class="pdf-num">${{ number_format($cliente->vales->sum('saldo_pendiente'), 2) }}</td>
@@ -88,6 +86,34 @@
             @endif
         </table>
     </div>
+
+    {{-- Detalle individual por vale: su propio historial de pagos tabulado
+         (sin fechas, igual que la tabla de arriba). --}}
+    @foreach ($cliente->vales as $vale)
+        @if ($vale->detallesRecibo->isNotEmpty())
+            <div class="pdf-table-card">
+                <table class="pdf-table pdf-compact">
+                    <thead>
+                        <tr><th colspan="3">Vale {{ $vale->folio_vale }} &middot; {{ $vale->financiera->nombre }}</th></tr>
+                        <tr>
+                            <th># Pago</th>
+                            <th class="pdf-num">Monto pago</th>
+                            <th class="pdf-num">Nuevo saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($vale->detallesRecibo as $detalle)
+                            <tr>
+                                <td>{{ $detalle->numero_pago_texto }}</td>
+                                <td class="pdf-num">${{ number_format($detalle->monto_pago, 2) }}</td>
+                                <td class="pdf-num">${{ number_format($detalle->nuevo_saldo, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    @endforeach
 
     <div class="pdf-footer-note">
         DistriVale &middot; Reporte de créditos / vales

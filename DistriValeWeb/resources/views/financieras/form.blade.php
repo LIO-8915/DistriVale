@@ -21,8 +21,22 @@
                 <input type="number" step="0.01" name="comision_porcentaje" class="form-control" value="{{ old('comision_porcentaje', $financiera->comision_porcentaje ?? 0) }}">
             </div>
             <div class="col-6 mb-3">
-                <label class="form-label">Recargo por mora (%)</label>
+                <label class="form-label">Ganancia quincenal (%)</label>
+                <input type="number" step="0.01" name="ganancia_quincenal_porcentaje" class="form-control" value="{{ old('ganancia_quincenal_porcentaje', $financiera->ganancia_quincenal_porcentaje) }}" placeholder="Sin definir">
+                <div class="form-text">% del total cobrado en la quincena a esta financiera que se queda el distribuidor. Déjalo vacío si aún no está definido.</div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">Recargo de financiera (%)</label>
                 <input type="number" step="0.01" name="recargo_porcentaje" class="form-control" value="{{ old('recargo_porcentaje', $financiera->recargo_porcentaje ?? 0) }}">
+                <div class="form-text">Recargo por mora que cobra la financiera al cliente — el que usa el sistema para calcular recargos automáticos.</div>
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">Recargo personal (%)</label>
+                <input type="number" step="0.01" name="recargo_personal_porcentaje" class="form-control" value="{{ old('recargo_personal_porcentaje', $financiera->recargo_personal_porcentaje) }}" placeholder="Pendiente de definir">
+                <div class="form-text text-warning">Pendiente de definir — por ahora solo se guarda el dato, no afecta ningún cálculo.</div>
             </div>
         </div>
 

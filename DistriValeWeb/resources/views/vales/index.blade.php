@@ -25,7 +25,7 @@
                 <select id="valesEstado" class="form-select form-select-sm">
                     <option value="">Todos los estados</option>
                     <option value="ACTIVO" @selected(request('estado') == 'ACTIVO')>Activo</option>
-                    <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>Demora</option>
+                    <option value="EN_MORA" @selected(request('estado') == 'EN_MORA')>Mora</option>
                     <option value="LIQUIDADO" @selected(request('estado') == 'LIQUIDADO')>Liquidado</option>
                 </select>
             </div>

@@ -125,6 +125,33 @@ php artisan serve
 
 y abrir `http://127.0.0.1:8000` en el navegador. Todo el trabajo de módulos (clientes, vales, financieras, recibos, liquidaciones) se prueba así. Tauri solo entra en juego al momento de empaquetar la app final para la usuaria.
 
+## 6.1. Servidor local: Caddy + varios `php-cgi` (reemplaza a `php artisan serve`)
+
+**Por qué.** El servidor embebido de PHP (`php -S`, lo que usa `artisan serve`) se queda colgado ~19 s en Windows cuando llegan peticiones simultáneas — y una pantalla las dispara (CSS, JS, fuentes). Se reprodujo con `php -S` a secas (PHP 8.4 y 8.5), con archivos estáticos, sin Laravel ni SQLite de por medio; un servidor Node con la misma carga no lo tuvo. `PHP_CLI_SERVER_WORKERS` no existe en Windows (se ignora). Medido con Edge real, 48 cargas de página:
+
+| | `artisan serve` | Caddy + 4 `php-cgi` | + OPcache |
+|---|---|---|---|
+| media | 18,484 ms | 778 ms | **350 ms** |
+| máximo | 35,000 ms | 1,501 ms | 956 ms |
+| cargas > 3 s | 41 de 48 | 0 | 0 |
+
+**Cómo funciona** (`iniciar_stack` en `main.rs`):
+1. Se reservan 4 puertos libres distintos y se lanzan 4 `php-cgi.exe -b 127.0.0.1:<p>` (FastCGI, `PHP_FCGI_MAX_REQUESTS=0`).
+2. Se espera a que los 4 acepten conexiones **antes** de arrancar Caddy (si no, la primera petición daría 502 y WebView2 no reintenta la navegación).
+3. Se genera `php/tmp/Caddyfile` y se lanza `caddy.exe run`: `bind 127.0.0.1`, `php_fastcgi` con `lb_policy least_conn`, `file_server` para estáticos.
+4. `vigilar_servidor` (hilo) relanza en el mismo puerto cualquier `php-cgi` o Caddy que muera.
+5. Al cerrar la ventana, `detener_servidor` mata todos los árboles con `taskkill /T`.
+
+**Respaldo.** Si falta `caddy.exe` o `php-cgi.exe`, o el stack no responde en 20 s, `iniciar_app_principal` cae solo a `php artisan serve` (probado quitando Caddy: arranca y responde 200).
+
+**Trampas que ya mordieron** (no repetirlas):
+- **`bind 127.0.0.1` es obligatorio.** Con solo `http://127.0.0.1:puerto` de dirección de sitio, Caddy igual escucha en `0.0.0.0` y `[::]` — la app quedaba abierta a toda la red local.
+- Las rutas en el Caddyfile van **entre comillas** y con `/`; con espacios sin comillas Caddy rechaza la configuración ("too many arguments").
+- **OPcache** (`zend_extension=opcache` en el `php.ini` que genera `write_php_ini`) solo rinde con `php-cgi`, que es de larga vida; en el SAPI CLI queda apagado (`enable_cli=0`).
+- `php-portable/ext/php_opcache.dll` y `php-cgi.exe` vienen en el zip NTS de windows.php.net; no hay que añadir nada más.
+
+**Obtener Caddy.** `DistriVale/caddy-portable/` está gitignorada (~53 MB). Bajar `caddy_<versión>_windows_amd64.zip` de https://github.com/caddyserver/caddy/releases y extraer **solo** `caddy.exe` ahí (probado con v2.11.7). `tauri.conf.json` la empaqueta como `resources/caddy`; el build falla si la carpeta `caddy-portable` no existe (igual que `php-portable`). Licencia Apache 2.0.
+
 ## 7. Respaldo de la base de datos a Google Drive
 
 `DistriValeWeb` tiene una pantalla ("Respaldo" en el sidebar) para subir/bajar manualmente `database.sqlite` a Google Drive — ver `app/Services/GoogleDriveService.php` y `app/Http/Controllers/GoogleDriveController.php`. No es sincronización en tiempo real: es "guardar en la nube" / "traer de la nube" a demanda, con un solo nivel de deshacer para la restauración.

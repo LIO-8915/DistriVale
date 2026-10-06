@@ -22,11 +22,13 @@ class ReciboConsolidado extends Model
         'total_oportuno',
         'total_extemporaneo',
         'fecha_emision',
+        'fecha_pago',
     ];
 
     protected $casts = [
         'fecha_corte' => 'date',
         'fecha_emision' => 'datetime',
+        'fecha_pago' => 'datetime',
         'total_oportuno' => 'decimal:2',
         'total_extemporaneo' => 'decimal:2',
     ];

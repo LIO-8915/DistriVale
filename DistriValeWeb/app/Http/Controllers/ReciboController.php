@@ -104,16 +104,35 @@ class ReciboController extends Controller
     }
 
     /**
-     * Marca el recibo como pagado: aplica el abono a cada vale (avanza quincena y saldo).
+     * Marca el recibo como pagado: aplica el abono a cada vale (avanza
+     * quincena y saldo). La fecha de pago y el monto de cada vale son
+     * editables desde recibos/show justo antes de confirmar — si el
+     * cliente pagó otro día o un monto distinto al sugerido, se captura
+     * aquí en vez de forzar el valor calculado al generar el recibo.
      */
-    public function confirmarPago(ReciboConsolidado $recibo)
+    public function confirmarPago(Request $request, ReciboConsolidado $recibo)
     {
-        $recibo->load('detalles.vale.financiera');
+        $validated = $request->validate([
+            'fecha_pago' => 'required|date',
+            'montos' => 'required|array',
+            'montos.*' => 'required|numeric|min:0',
+        ]);
 
-        DB::transaction(function () use ($recibo) {
+        $recibo->load('detalles.vale.financiera');
+        $fechaPago = \Carbon\Carbon::parse($validated['fecha_pago']);
+
+        DB::transaction(function () use ($recibo, $validated, $fechaPago) {
             foreach ($recibo->detalles as $detalle) {
-                $detalle->vale->registrarPago((float) $detalle->monto_pago);
+                $monto = (float) ($validated['montos'][$detalle->id_detalle] ?? $detalle->monto_pago);
+                $detalle->vale->registrarPago($monto, $fechaPago);
+
+                $detalle->update([
+                    'monto_pago' => $monto,
+                    'nuevo_saldo' => $detalle->vale->saldo_pendiente,
+                ]);
             }
+
+            $recibo->update(['fecha_pago' => $fechaPago]);
         });
 
         // Un vale en mora que se acaba de pagar vuelve a ACTIVO en el acto,

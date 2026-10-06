@@ -92,4 +92,41 @@
     .pdf-badge-EN_MORA { background: rgba(255, 159, 67, .18); color: #c97316; }
     .pdf-badge-LIQUIDADO { background: rgba(120, 130, 145, .16); color: #6b7688; }
     .pdf-badge-ULTIMO { background: rgba(79, 124, 255, .14); color: #3b5fd9; }
+
+    /* Tarjetas por cliente en 2 columnas (reporte de relación de cobranza):
+       dompdf soporta floats mucho mejor que flex/grid, así que el layout de
+       2 columnas se hace con float en vez de display:flex/grid. Cada
+       tarjeta lleva page-break-inside:avoid para que, si no cabe completa en
+       lo que queda de la página, dompdf la empuje entera a la siguiente en
+       vez de cortarla a la mitad — eso es lo que de verdad evita que un
+       cliente quede partido entre dos hojas (más confiable que
+       page-break-inside en un <tr>/<tbody> suelto dentro de una tabla
+       grande, que dompdf respeta de forma más irregular). */
+    .pdf-client-card {
+        width: 48%; float: left; margin: 0 4% 14px 0;
+        border: 1.2px solid #4f7cff; border-radius: 12px; overflow: hidden;
+        page-break-inside: avoid;
+    }
+    .pdf-client-card.pdf-client-card-r { margin-right: 0; }
+    .pdf-client-card .pdf-client-header {
+        background: rgba(79, 124, 255, .14); color: #3b5fd9; font-weight: bold;
+        font-size: 9.5px; padding: 6px 8px; letter-spacing: .02em;
+    }
+    .pdf-client-card table { width: 100%; border-collapse: collapse; }
+    .pdf-client-card th {
+        background: rgba(79, 124, 255, .08); color: #475569; text-align: left;
+        text-transform: uppercase; font-size: 7px; letter-spacing: .03em; font-weight: 700;
+        padding: 4px 5px; border-bottom: 1px solid #c9d6f5;
+    }
+    .pdf-client-card td { padding: 4px 5px; font-size: 8px; border-bottom: 1px solid #eef1f8; }
+    .pdf-client-card tr:last-child td { border-bottom: none; }
+    .pdf-client-card .pdf-num { text-align: right; white-space: nowrap; }
+    .pdf-client-card tfoot td {
+        font-weight: bold; background: rgba(79, 124, 255, .08);
+        border-top: 1.2px solid #4f7cff; font-size: 7.8px;
+    }
+    /* Limpia los floats antes del siguiente bloque (meta card de la
+       siguiente financiera, nota del pie, etc.) para que no quede flotando
+       encima de contenido que debería ir después. */
+    .pdf-clear { clear: both; }
 </style>

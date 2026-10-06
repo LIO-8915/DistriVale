@@ -39,6 +39,15 @@
     // never flashes a loading state at all.
     var SLOW_MS = 250;
 
+    // Duración mínima de una navegación animada (clic → contenido nuevo).
+    // Con respuestas de ~100 ms, el cambio sin esto se siente brusco; con
+    // esto la espera queda escondida dentro de la animación de salida/entrada
+    // (ver dv-motion.js). Si el servidor tarda más, manda el servidor.
+    var MIN_NAV_MS = 180;
+
+    var outAnim = null;
+    var skelTimer = null;
+
     function isDownloadPath(pathname) {
         return /\.(pdf|xlsx?|csv|zip|docx?)$/i.test(pathname);
     }
@@ -127,7 +136,12 @@
         });
     }
 
-    function applySwap(html, url, push) {
+    function clearSkeleton() {
+        clearTimeout(skelTimer);
+        document.documentElement.classList.remove('dv-nav-skeleton');
+    }
+
+    function applySwap(html, url, push, animate) {
         var doc = new DOMParser().parseFromString(html, 'text/html');
         var nextView = doc.querySelector(SEL.view);
         var currentView = document.querySelector(SEL.view);
@@ -144,6 +158,10 @@
         swapText(SEL.subtitle, doc);
         swapText(SEL.actions, doc);
         syncSidebarActive(doc);
+        // La animación de salida (fill:'forwards') debe soltarse justo antes de
+        // reemplazar el contenido, o la vista se quedaría atenuada para siempre.
+        releaseOut();
+        clearSkeleton();
         currentView.innerHTML = nextView.innerHTML;
         runPageScripts(doc);
 
@@ -156,9 +174,21 @@
         // DOM — Bootstrap tooltips/popovers, anything added later — do so
         // without dv-nav.js needing to know they exist. See dv-ui.js.
         document.dispatchEvent(new CustomEvent('dv:nav-swapped'));
+
+        if (animate && window.DvMotion) window.DvMotion.enter(currentView);
     }
 
-    function navigate(url, push) {
+    function releaseOut() {
+        if (outAnim) {
+            outAnim.cancel();
+            outAnim = null;
+        }
+    }
+
+    // animate=false: refrescos programáticos (p. ej. un sondeo en segundo
+    // plano) que no deben parpadear ni retrasarse.
+    function navigate(url, push, animate) {
+        animate = animate !== false && !!window.DvMotion && window.DvMotion.enabled();
         // Safety net: lets widgets like Bootstrap tooltips hide/dispose
         // themselves *before* anything moves, covering the case where the
         // element the user is hovering is the very link being clicked.
@@ -167,6 +197,28 @@
         if (inFlight) inFlight.abort();
         var controller = new AbortController();
         inFlight = controller;
+
+        // Si ya hay una salida en curso (clic rápido sobre otra pantalla), la
+        // vista ya está atenuada: se reutiliza en vez de apilar otra.
+        if (animate && !outAnim) {
+            outAnim = window.DvMotion.out(document.querySelector(SEL.view));
+        }
+        // Pasados ~250 ms, el esqueleto de la pantalla destino reemplaza al
+        // contenido atenuado (ya no se usa el spinner sobre contenido viejo).
+        clearTimeout(skelTimer);
+        if (animate) {
+            skelTimer = setTimeout(function () {
+                if (inFlight !== controller) return;
+                releaseOut();
+                var path = new URL(url, window.location.href).pathname;
+                if (window.DvMotion.skeleton(document.querySelector(SEL.view), path)) {
+                    document.documentElement.classList.add('dv-nav-skeleton');
+                }
+            }, SLOW_MS);
+        }
+        var minWait = animate
+            ? new Promise(function (resolve) { setTimeout(resolve, MIN_NAV_MS); })
+            : Promise.resolve();
 
         fetch(url, {
             headers: { 'X-DV-Nav': '1' },
@@ -182,7 +234,12 @@
                 return res.text();
             })
             .then(function (html) {
-                if (html !== null) applySwap(html, url, push);
+                // Espera el mínimo solo si el fetch fue más rápido que él.
+                return minWait.then(function () { return html; });
+            })
+            .then(function (html) {
+                if (controller.signal.aborted) return;
+                if (html !== null) applySwap(html, url, push, animate);
             })
             .catch(function (err) {
                 if (err && err.name !== 'AbortError') window.location.href = url;
@@ -191,6 +248,8 @@
                 if (inFlight === controller) {
                     inFlight = null;
                     setLoading(false);
+                    releaseOut(); // red de seguridad: error o respuesta sin swap
+                    clearSkeleton();
                 }
             });
     }
@@ -217,5 +276,5 @@
     // outside the WebView, like finishing Google's login in the system
     // browser) re-fetch and swap the current screen through the same pjax
     // path a link click would use, instead of a jarring full reload.
-    window.DvNav = { refresh: function () { navigate(window.location.href, false); } };
+    window.DvNav = { refresh: function () { navigate(window.location.href, false, false); } };
 })();

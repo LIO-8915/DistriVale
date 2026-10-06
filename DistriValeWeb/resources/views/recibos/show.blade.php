@@ -3,10 +3,7 @@
 @section('title', 'Recibo consolidado')
 @section('actions')
     <button class="btn btn-sm btn-outline-secondary" onclick="copiarRecibo()"><i class="bi bi-clipboard"></i> Copiar texto</button>
-    <form action="{{ route('recibos.confirmar-pago', $recibo) }}" method="POST" class="d-inline" data-confirm="¿Confirmar que este recibo fue pagado? Esto actualizará el saldo y la quincena de cada vale.">
-        @csrf
-        <button class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Confirmar pago</button>
-    </form>
+    <button type="submit" form="form-confirmar-pago" class="btn btn-sm btn-success"><i class="bi bi-check2-circle"></i> Confirmar pago</button>
     <a href="{{ route('recibos.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
 @endsection
 
@@ -22,22 +19,37 @@
         <div class="mb-3"><strong>Teléfono:</strong> {{ $recibo->cliente->telefono }}</div>
     @endif
 
-    <table class="table table-sm">
-        <thead>
-            <tr><th>Financiera</th><th>Folio</th><th># Pago</th><th class="text-end">Monto</th><th class="text-end">Nuevo saldo</th></tr>
-        </thead>
-        <tbody>
-            @foreach ($recibo->detalles as $detalle)
-                <tr>
-                    <td>{{ $detalle->vale->financiera->nombre }}</td>
-                    <td>{{ $detalle->vale->folio_vale }}</td>
-                    <td>{{ $detalle->numero_pago_texto }}</td>
-                    <td class="text-end">${{ number_format($detalle->monto_pago, 2) }}</td>
-                    <td class="text-end">${{ number_format($detalle->nuevo_saldo, 2) }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+    {{-- Fecha de pago y monto por vale son editables: lo que calcula el
+         sistema al generar el recibo es solo una sugerencia, por si el
+         cliente termina pagando otro día o un monto distinto. Al confirmar,
+         estos son los valores que se aplican de verdad a cada vale. --}}
+    <form id="form-confirmar-pago" action="{{ route('recibos.confirmar-pago', $recibo) }}" method="POST" data-confirm="¿Confirmar que este recibo fue pagado? Esto actualizará el saldo y la quincena de cada vale con la fecha y los montos capturados aquí.">
+        @csrf
+
+        <div class="mb-3">
+            <label class="form-label">Fecha de pago</label>
+            <input type="date" name="fecha_pago" class="form-control" value="{{ old('fecha_pago', optional($recibo->fecha_pago ?? $recibo->fecha_corte)->format('Y-m-d')) }}" required>
+        </div>
+
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Financiera</th><th>Folio</th><th># Pago</th><th class="text-end">Monto</th><th class="text-end">Nuevo saldo</th></tr>
+            </thead>
+            <tbody>
+                @foreach ($recibo->detalles as $detalle)
+                    <tr>
+                        <td>{{ $detalle->vale->financiera->nombre }}</td>
+                        <td>{{ $detalle->vale->folio_vale }}</td>
+                        <td>{{ $detalle->numero_pago_texto }}</td>
+                        <td class="text-end" style="max-width: 130px;">
+                            <input type="number" step="0.01" min="0" name="montos[{{ $detalle->id_detalle }}]" class="form-control form-control-sm text-end" value="{{ old('montos.'.$detalle->id_detalle, $detalle->monto_pago) }}">
+                        </td>
+                        <td class="text-end">${{ number_format($detalle->nuevo_saldo, 2) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </form>
 
     <div class="d-flex justify-content-between border-top pt-2">
         <span>Total pago oportuno</span>

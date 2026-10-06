@@ -6,7 +6,7 @@
 <div class="row justify-content-center">
 <div class="col-xxl-5 col-xl-6 col-lg-7 col-md-9">
 <div class="card p-4">
-    <p class="text-muted small">Se generará un recibo agrupando todos los vales activos o en demora del cliente seleccionado, calculando el pago oportuno y el pago con recargo por financiera.</p>
+    <p class="text-muted small">Se generará un recibo agrupando todos los vales activos o en mora del cliente seleccionado, calculando el pago oportuno y el pago con recargo por financiera.</p>
 
     <form action="{{ route('recibos.store') }}" method="POST">
         @csrf

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -69,7 +70,7 @@ class Vale extends Model
     {
         return match ($estado) {
             'ACTIVO' => 'Activo',
-            'EN_MORA' => 'Demora',
+            'EN_MORA' => 'Mora',
             'LIQUIDADO' => 'Liquidado',
             default => $estado,
         };
@@ -112,8 +113,11 @@ class Vale extends Model
      * vuelve a faltar, ese recargo entra otra vez a la base sobre la que se
      * calcula el próximo, por eso se va acumulando. Si el pago sí alcanza,
      * el cliente queda al día y el recargo se limpia.
+     *
+     * $fecha: fecha real en que se recibió el pago (capturable en cobranza,
+     * ver ReciboController::confirmarPago()) — null usa el momento actual.
      */
-    public function registrarPago(float $monto): void
+    public function registrarPago(float $monto, ?Carbon $fecha = null): void
     {
         $montoEsperado = $this->montoProximoPago();
         $this->saldo_pendiente = max(0, round((float) $this->saldo_pendiente - $monto, 2));
@@ -134,7 +138,7 @@ class Vale extends Model
         }
 
         $this->quincena_actual = $this->quincena_actual + 1;
-        $this->fecha_ultimo_pago = now();
+        $this->fecha_ultimo_pago = $fecha ?? now();
 
         if ($this->saldo_pendiente <= 0) {
             $this->estado = 'LIQUIDADO';

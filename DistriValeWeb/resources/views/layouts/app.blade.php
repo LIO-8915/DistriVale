@@ -107,6 +107,55 @@
         }
         html.dv-nav-slow #dv-view { opacity: .45; transition: opacity .15s ease; }
         html.dv-nav-slow .dv-nav-slow-spinner { display: flex; }
+
+        /* Esqueleto de carga (dv-motion.js): reemplaza al spinner sobre
+           contenido atenuado cuando la espera pasa de ~250ms. El brillo es un
+           linear-gradient desplazado — nada de radial-gradient, que en
+           WebView2 deja una costura vertical. */
+        html.dv-nav-skeleton .dv-nav-slow-spinner { display: none; }
+        html.dv-nav-skeleton #dv-view { opacity: 1; }
+        .dv-sk {
+            border-radius: 8px; background-color: #e6e9f0;
+            background-image: linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.65) 50%, rgba(255,255,255,0) 70%);
+            background-size: 200% 100%; background-repeat: no-repeat;
+            animation: dv-sk-shimmer 1.3s linear infinite;
+        }
+        @keyframes dv-sk-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+        /* Dígitos de ancho fijo mientras un total "cuenta" hacia arriba, para
+           que la celda no tiemble. */
+        .dv-counting { font-variant-numeric: tabular-nums; }
+
+        /* Indicador deslizante del sidebar (dv-motion.js). Con él presente, la
+           píldora activa deja de pintarse en el <a> y la dibuja el indicador,
+           que se desplaza entre ítems con el mismo rebote de los botones. */
+        #dv-sidebar-nav { position: relative; }
+        #dv-sidebar-nav > a { position: relative; z-index: 1; }
+        .dv-nav-indicator {
+            position: absolute; top: 0; left: 0; z-index: 0; opacity: 0; pointer-events: none;
+            border-radius: .75rem;
+            background: linear-gradient(135deg, rgba(79, 124, 255, .9), rgba(111, 155, 255, .9));
+            -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
+            box-shadow: 0 6px 16px rgba(79, 124, 255, .35);
+            transition: transform .38s var(--dv-spring), width .2s ease, height .2s ease, opacity .15s ease;
+        }
+        html.dv-has-indicator .dv-sidebar a.active {
+            background: transparent; box-shadow: none;
+            -webkit-backdrop-filter: none; backdrop-filter: none;
+        }
+        /* El hover de un ítem inactivo no debe pisar al activo cuando aún
+           está entrando el indicador. */
+        html.dv-has-indicator .dv-sidebar a.active:hover { background: transparent; }
+
+        /* Hover sutil en las tarjetas de totales: se eleva un poco. Solo
+           .stat-card: elevar tarjetas con tablas o formularios estorbaría y
+           el transform crearía un contexto de apilamiento sobre sus dropdowns. */
+        .stat-card { transition: transform .25s var(--dv-spring), box-shadow .25s ease; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(30, 41, 59, .18); }
+        @media (prefers-reduced-motion: reduce) {
+            .dv-nav-indicator { transition: none; }
+            .stat-card, .stat-card:hover { transform: none; transition: none; }
+        }
+        @media (prefers-reduced-motion: reduce) { .dv-sk { animation: none; } }
     </style>
     <style>
         :root {
@@ -1012,6 +1061,7 @@
 
     <div id="dv-page-scripts">@stack('scripts')</div>
 
+    <script src="{{ asset('js/dv-motion.js') }}"></script>
     <script src="{{ asset('js/dv-nav.js') }}"></script>
     <script src="{{ asset('js/dv-ui.js') }}"></script>
     <script src="{{ asset('js/dv-searchselect.js') }}"></script>

@@ -7,6 +7,11 @@
 # nada acá que valga la pena versionar.
 /php-portable
 
+# Caddy (un solo caddy.exe, ~53 MB) que va delante de los php-cgi — ver
+# resolve_caddy en main.rs. Se descarga aparte de https://github.com/caddyserver/caddy/releases
+# (caddy_<versión>_windows_amd64.zip) y se extrae SOLO caddy.exe acá.
+/caddy-portable
+
 # Licensing (Lemon Squeezy) - secrets and local activation data, never commit
 .env
 .env.*

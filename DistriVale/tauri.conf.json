@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DistriVale",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "identifier": "com.distrivale.app",
   "build": {
     "frontendDist": "dist"
@@ -36,7 +36,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "php-portable": "php"
+      "php-portable": "php",
+      "caddy-portable": "caddy"
     }
   }
 }

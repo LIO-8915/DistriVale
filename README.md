@@ -2,7 +2,15 @@
 
 Aplicación de escritorio (Tauri + Laravel) para administrar clientes, créditos, cobranza y liquidaciones de un negocio de préstamos.
 
-## Versión actual: v0.9.7
+## Versión actual: v0.9.8
+
+Dos frentes: la lógica de cobranza/mora y el rendimiento del servidor local.
+
+**Cobranza y mora**: la fecha de pago y el monto quedan editables al confirmar un recibo (antes eran 100% automáticos). `App\Support\Mora` deja de contar "cada 15 días desde que se dispuso" (ventana rotativa) y pasa a cortes de calendario fijos — día 15 y último día del mes, igual que `App\Support\Quincena` ya usa en el resto de la app — con el recargo activándose el día siguiente a cada corte (16, o el 1 del mes siguiente). En `cat_financieras` el recargo de financiera y el "recargo personal" (beneficio del distribuidor, mecánica aún sin definir) quedan en campos separados, y se agrega un % de ganancia quincenal por financiera. El PDF de cliente deja de mostrar fechas y el nuevo PDF "Relación de cobranza" (antes "Ganancias quincenales") exporta, por financiera o por todas, una tarjeta por cliente que no se corta entre hojas. La etiqueta "Demora" vuelve a "Mora" en toda la app.
+
+**Servidor local más rápido**: `php artisan serve` (su servidor embebido, `php -S`) se quedaba colgado ~19 s en Windows con ráfagas de peticiones concurrentes — una sola pantalla dispara varias a la vez (CSS, JS, iconos). Se reemplaza por Caddy sirviendo de frente a 4 procesos `php-cgi` (FastCGI) con OPcache activado: de una media de 18.5 s (41 de 48 cargas por encima de 3 s) a 350 ms (0 de 48). Un hilo supervisor relanza cualquier `php-cgi`/Caddy que muera; si falta algún binario o el stack no arranca a tiempo, cae de vuelta al `php artisan serve` de antes. De paso se corrigió que cerrar la ventana dejaba huérfano el proceso que de verdad atendía las peticiones (Windows no mata hijos en cascada) — ahora se usa `taskkill /T` sobre el árbol completo. Ver `ARQUITECTURA_TAURI.md` §6.1.
+
+## Versión anterior: v0.9.7
 
 Empaqueta PHP portable (8.4.x NTS x64, descargado de windows.php.net) dentro de la propia app, para que el cliente que instale DistriVale no necesite tener PHP instalado por su cuenta. Vive en `DistriVale/php-portable/` — pesa ~90 MB, por eso está en `.gitignore` (ver `ARQUITECTURA_TAURI.md` §5 para cómo regenerarla) y no se sube al repo. `main.rs` lo ubica en tiempo de ejecución (`resolve_php_dir`) con la misma estrategia de 3 pasos que ya usaba para encontrar `DistriValeWeb/`, y reescribe `php.ini` en cada arranque (`write_php_ini`) con rutas absolutas — no se pueden fijar en el archivo porque dependen de dónde quede instalado el `.exe` en la máquina del cliente. En el camino aparecieron y se corrigieron dos bugs de plataforma en Windows (ver ARQUITECTURA_TAURI.md): `php artisan serve` no hereda la mayoría de las variables de entorno al proceso que de verdad atiende las peticiones (rompía la generación de PDFs), y `current_exe()`/`resource_dir()` a veces traen el prefijo extendido de rutas de Windows (`\\?\...`), que Symfony Process no tolera.
 

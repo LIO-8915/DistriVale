@@ -48,15 +48,53 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// Proceso de `php artisan serve` en ejecución, para poder matarlo al
-/// cerrar la ventana. `None` hasta que el servidor arranca con éxito.
-struct PhpServer(Mutex<Option<Child>>);
+/// Un proceso `php-cgi` del grupo que atiende las peticiones, con el puerto
+/// FastCGI en el que escucha (para relanzarlo en el mismo puerto si muere).
+struct Worker {
+    port: u16,
+    child: Child,
+}
+
+/// Todo lo que hay que matar al cerrar la ventana.
+///
+/// - Camino normal: `workers` (4 × `php-cgi`) + `frontal` (Caddy).
+/// - Camino de respaldo: `frontal` guarda el proceso de `php artisan serve`.
+///
+/// `closing` avisa al hilo supervisor de que ya no debe relanzar nada.
+#[derive(Default)]
+struct ServerStack {
+    workers: Vec<Worker>,
+    frontal: Option<Child>,
+    closing: bool,
+}
+
+struct PhpServer(Mutex<ServerStack>);
+
+/// Cuántos procesos `php-cgi` atienden en paralelo. El servidor embebido de
+/// PHP (`php -S`) se queda colgado ~19 s con ráfagas de peticiones en Windows
+/// (medido: 41 de 48 cargas de página con Edge pasaron de 3 s, media 18.5 s);
+/// con Caddy repartiendo entre varios `php-cgi` la misma prueba dio 0 de 48
+/// por encima de 3 s, máximo 1.5 s.
+const PHP_WORKERS: usize = 4;
 
 fn find_free_port() -> u16 {
     std::net::TcpListener::bind("127.0.0.1:0")
         .and_then(|listener| listener.local_addr())
         .map(|addr| addr.port())
         .unwrap_or(8712)
+}
+
+/// Varios puertos libres DISTINTOS: se mantienen todos los sockets abiertos
+/// hasta tenerlos juntos, porque pedir uno por uno puede devolver el mismo
+/// puerto dos veces (el SO lo libera al soltar el listener).
+fn find_free_ports(n: usize) -> Vec<u16> {
+    let listeners: Vec<std::net::TcpListener> = (0..n)
+        .filter_map(|_| std::net::TcpListener::bind("127.0.0.1:0").ok())
+        .collect();
+    listeners
+        .iter()
+        .filter_map(|l| l.local_addr().ok().map(|a| a.port()))
+        .collect()
 }
 
 /// Ubica la app Laravel probando, en orden: (1) un build empaquetado de
@@ -178,6 +216,19 @@ date.timezone = "America/Mazatlan"
 extension_dir = "{}"
 sys_temp_dir = "{}"
 
+; OPcache: los php-cgi son procesos de larga vida, así que el bytecode
+; compilado de Laravel y sus dependencias se reutiliza entre peticiones
+; (sin esto, cada petición recompila decenas de archivos). Solo aplica a
+; php-cgi: con `php -S`/`artisan serve` (SAPI CLI) queda apagado por
+; enable_cli=0, sin efecto en el camino de respaldo.
+zend_extension=opcache
+opcache.enable=1
+opcache.enable_cli=0
+opcache.memory_consumption=128
+opcache.max_accelerated_files=10000
+opcache.validate_timestamps=1
+opcache.revalidate_freq=2
+
 extension=curl
 extension=fileinfo
 extension=gd
@@ -192,6 +243,252 @@ extension=zip
     );
 
     std::fs::write(php_dir.join("php.ini"), ini)
+}
+
+/// Ubica `caddy.exe` con la misma estrategia de 3 pasos que `resolve_php_dir`
+/// (empaquetado como `resources/caddy` / copia portable hermana del .exe /
+/// carpeta de desarrollo `DistriVale/caddy-portable`, gitignorada). `None` si
+/// no está: entonces se usa el camino de respaldo (`php artisan serve`).
+fn resolve_caddy(app: &AppHandle) -> Option<PathBuf> {
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let packaged = quitar_prefijo_extendido(resource_dir).join("caddy").join("caddy.exe");
+        if packaged.exists() {
+            return Some(packaged);
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        let exe_path = quitar_prefijo_extendido(exe_path);
+        if let Some(exe_dir) = exe_path.parent() {
+            let portable = exe_dir.join("caddy").join("caddy.exe");
+            if portable.exists() {
+                return Some(portable);
+            }
+        }
+    }
+
+    let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("caddy-portable").join("caddy.exe");
+    if dev.exists() {
+        return Some(dev);
+    }
+
+    None
+}
+
+fn spawn_php_cgi(php_dir: &PathBuf, webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
+    let mut cmd = Command::new(php_dir.join("php-cgi.exe"));
+    cmd.arg("-b")
+        .arg(format!("127.0.0.1:{port}"))
+        .arg("-c")
+        .arg(php_dir.join("php.ini"))
+        .current_dir(webapp_dir.join("public"))
+        // 0 = sin reciclado automático: de lo contrario cada php-cgi termina
+        // solo tras N peticiones y alguien tendría que relanzarlo. La
+        // supervisión de `vigilar_servidor` ya cubre los que mueran por error.
+        .env("PHP_FCGI_MAX_REQUESTS", "0")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    cmd.spawn()
+}
+
+/// Caddyfile generado en cada arranque (los puertos y rutas cambian). Las
+/// rutas van entre comillas y con `/`: sin comillas, una ruta con espacios
+/// (p. ej. `C:\Users\Nombre Apellido\...`) hace que Caddy rechace la
+/// configuración con "too many arguments".
+///
+/// `bind 127.0.0.1` es obligatorio: con solo `http://127.0.0.1:puerto` como
+/// dirección del sitio, Caddy igual escucha en TODAS las interfaces
+/// (0.0.0.0 y [::]) — la app quedaría accesible desde la red local.
+fn write_caddyfile(
+    php_dir: &PathBuf,
+    webapp_dir: &PathBuf,
+    port: u16,
+    worker_ports: &[u16],
+) -> std::io::Result<PathBuf> {
+    let dir = php_dir.join("tmp");
+    std::fs::create_dir_all(&dir)?;
+
+    let root = webapp_dir.join("public").to_string_lossy().replace('\\', "/");
+    let upstreams = worker_ports
+        .iter()
+        .map(|p| format!("127.0.0.1:{p}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let contenido = format!(
+        "{{\n\tadmin off\n\tauto_https off\n}}\n\
+         http://127.0.0.1:{port} {{\n\
+         \tbind 127.0.0.1\n\
+         \troot * \"{root}\"\n\
+         \tphp_fastcgi {upstreams} {{\n\
+         \t\tlb_policy least_conn\n\
+         \t\tread_timeout 120s\n\
+         \t}}\n\
+         \tfile_server\n\
+         }}\n"
+    );
+
+    let ruta = dir.join("Caddyfile");
+    std::fs::write(&ruta, contenido)?;
+    Ok(ruta)
+}
+
+fn spawn_caddy(caddy_exe: &PathBuf, caddyfile: &PathBuf, data_dir: &PathBuf) -> std::io::Result<Child> {
+    std::fs::create_dir_all(data_dir)?;
+
+    let mut cmd = Command::new(caddy_exe);
+    cmd.arg("run")
+        .arg("--config")
+        .arg(caddyfile)
+        .arg("--adapter")
+        .arg("caddyfile")
+        // Que Caddy guarde su estado junto a la app y no en %AppData%.
+        .env("XDG_DATA_HOME", data_dir)
+        .env("XDG_CONFIG_HOME", data_dir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    cmd.spawn()
+}
+
+/// Espera a que un puerto acepte conexiones TCP.
+fn esperar_puerto(port: u16, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+/// Camino normal: `PHP_WORKERS` procesos `php-cgi` + Caddy delante. Los
+/// `php-cgi` se levantan y se confirman ANTES de arrancar Caddy: si Caddy
+/// recibiera la primera petición sin ellos, respondería 502 y la ventana se
+/// quedaría con esa página de error (WebView2 no reintenta la navegación).
+fn iniciar_stack(
+    app_handle: &AppHandle,
+    php_dir: &PathBuf,
+    caddy_exe: &PathBuf,
+    webapp_dir: &PathBuf,
+    port: u16,
+) -> Result<(), String> {
+    write_php_ini(php_dir).map_err(|e| format!("php.ini: {e}"))?;
+
+    let worker_ports = find_free_ports(PHP_WORKERS);
+    if worker_ports.len() != PHP_WORKERS {
+        return Err("no se pudieron reservar puertos libres".to_string());
+    }
+
+    let state = app_handle.try_state::<PhpServer>().ok_or("estado no registrado")?;
+    {
+        let mut stack = state.0.lock().unwrap();
+        stack.closing = false;
+        for &p in &worker_ports {
+            let child = spawn_php_cgi(php_dir, webapp_dir, p).map_err(|e| format!("php-cgi: {e}"))?;
+            stack.workers.push(Worker { port: p, child });
+        }
+    }
+
+    for &p in &worker_ports {
+        if !esperar_puerto(p, Duration::from_secs(10)) {
+            return Err(format!("php-cgi no respondió en el puerto {p}"));
+        }
+    }
+
+    let caddyfile = write_caddyfile(php_dir, webapp_dir, port, &worker_ports).map_err(|e| format!("Caddyfile: {e}"))?;
+    let data_dir = php_dir.join("tmp").join("caddy-data");
+    let caddy = spawn_caddy(caddy_exe, &caddyfile, &data_dir).map_err(|e| format!("caddy: {e}"))?;
+    state.0.lock().unwrap().frontal = Some(caddy);
+
+    Ok(())
+}
+
+/// Mata un proceso y todos sus descendientes. `Child::kill` manda
+/// TerminateProcess solo al PID directo y en Windows eso NO mata en cascada a
+/// sus hijos: `php artisan serve` lanza un SEGUNDO php.exe que es el que de
+/// verdad atiende las peticiones, y quedaba huérfano con los DLLs de
+/// php-portable cargados, bloqueando el siguiente `cargo build` ("os error
+/// 32"). `taskkill /T` mata el árbol completo.
+fn matar_arbol(child: &mut Child) {
+    #[cfg(target_os = "windows")]
+    {
+        let mut taskkill = Command::new("taskkill");
+        taskkill.args(["/PID", &child.id().to_string(), "/T", "/F"]);
+        taskkill.creation_flags(CREATE_NO_WINDOW);
+        let _ = taskkill.status();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = child.kill();
+    }
+}
+
+/// Detiene todo lo que haya levantado el arranque (stack o `artisan serve`).
+/// Deja `closing = true`; quien quiera volver a arrancar debe reiniciarlo.
+fn detener_servidor(app_handle: &AppHandle) {
+    let Some(state) = app_handle.try_state::<PhpServer>() else {
+        return;
+    };
+    let mut stack = state.0.lock().unwrap();
+    stack.closing = true;
+    if let Some(mut frontal) = stack.frontal.take() {
+        matar_arbol(&mut frontal);
+    }
+    for mut w in stack.workers.drain(..) {
+        matar_arbol(&mut w.child);
+    }
+}
+
+/// Hilo supervisor: si un `php-cgi` o Caddy muere por error, lo relanza en el
+/// mismo puerto — sin esto, un solo proceso caído dejaría 1/4 de las
+/// peticiones fallando hasta cerrar y reabrir la app.
+fn vigilar_servidor(
+    app_handle: AppHandle,
+    php_dir: PathBuf,
+    caddy_exe: PathBuf,
+    webapp_dir: PathBuf,
+) {
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(Duration::from_secs(2));
+            let Some(state) = app_handle.try_state::<PhpServer>() else {
+                return;
+            };
+            let mut stack = state.0.lock().unwrap();
+            if stack.closing {
+                return;
+            }
+
+            for w in stack.workers.iter_mut() {
+                if matches!(w.child.try_wait(), Ok(Some(_))) {
+                    if let Ok(nuevo) = spawn_php_cgi(&php_dir, &webapp_dir, w.port) {
+                        w.child = nuevo;
+                    }
+                }
+            }
+
+            let caddy_muerto = match stack.frontal.as_mut() {
+                Some(c) => matches!(c.try_wait(), Ok(Some(_))),
+                None => false,
+            };
+            if caddy_muerto {
+                let ruta = php_dir.join("tmp").join("Caddyfile");
+                let data_dir = php_dir.join("tmp").join("caddy-data");
+                if let Ok(nuevo) = spawn_caddy(&caddy_exe, &ruta, &data_dir) {
+                    stack.frontal = Some(nuevo);
+                }
+            }
+        }
+    });
 }
 
 fn spawn_php_server(php_dir: Option<&PathBuf>, webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
@@ -343,29 +640,56 @@ fn iniciar_app_principal(app_handle: AppHandle) {
         return;
     };
 
-    let port = find_free_port();
+    let mut port = find_free_port();
     let php_dir = resolve_php_dir(&app_handle);
+    let caddy_exe = resolve_caddy(&app_handle);
 
-    let child = match spawn_php_server(php_dir.as_ref(), &webapp_dir, port) {
-        Ok(child) => child,
-        Err(e) => {
-            let mensaje = if php_dir.is_some() {
-                format!("No se pudo iniciar PHP ({e}).")
+    // Camino normal: Caddy + varios php-cgi (ver PHP_WORKERS). Solo si están
+    // los dos binarios; cualquier fallo cae al camino de respaldo de abajo en
+    // lugar de dejar la app sin arrancar.
+    let mut listo = false;
+    if let (Some(pd), Some(cd)) = (php_dir.as_ref(), caddy_exe.as_ref()) {
+        if pd.join("php-cgi.exe").exists() {
+            listo = iniciar_stack(&app_handle, pd, cd, &webapp_dir, port).is_ok()
+                && wait_for_server(port, Duration::from_secs(20));
+
+            if listo {
+                vigilar_servidor(app_handle.clone(), pd.clone(), cd.clone(), webapp_dir.clone());
             } else {
-                format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?")
-            };
-            show_startup_error(&app_handle, &mensaje);
-            return;
+                detener_servidor(&app_handle);
+            }
         }
-    };
-
-    if let Some(state) = app_handle.try_state::<PhpServer>() {
-        *state.0.lock().unwrap() = Some(child);
     }
 
-    if !wait_for_server(port, Duration::from_secs(15)) {
-        show_startup_error(&app_handle, "El servidor de Laravel no respondió a tiempo.");
-        return;
+    // Respaldo: el servidor embebido de PHP. Más lento y propenso a los
+    // bloqueos de ~19 s en Windows, pero no depende de Caddy.
+    if !listo {
+        port = find_free_port();
+        if let Some(state) = app_handle.try_state::<PhpServer>() {
+            state.0.lock().unwrap().closing = false;
+        }
+
+        let child = match spawn_php_server(php_dir.as_ref(), &webapp_dir, port) {
+            Ok(child) => child,
+            Err(e) => {
+                let mensaje = if php_dir.is_some() {
+                    format!("No se pudo iniciar PHP ({e}).")
+                } else {
+                    format!("No se pudo iniciar PHP ({e}). ¿Está PHP instalado y en el PATH?")
+                };
+                show_startup_error(&app_handle, &mensaje);
+                return;
+            }
+        };
+
+        if let Some(state) = app_handle.try_state::<PhpServer>() {
+            state.0.lock().unwrap().frontal = Some(child);
+        }
+
+        if !wait_for_server(port, Duration::from_secs(15)) {
+            show_startup_error(&app_handle, "El servidor de Laravel no respondió a tiempo.");
+            return;
+        }
     }
 
     let url = format!("http://127.0.0.1:{port}");
@@ -480,7 +804,7 @@ async fn continuar_arranque(app: AppHandle) {
 
 fn main() {
     tauri::Builder::default()
-        .manage(PhpServer(Mutex::new(None)))
+        .manage(PhpServer(Mutex::new(ServerStack::default())))
         .invoke_handler(tauri::generate_handler![
             licensing::activar_cuenta,
             licensing::check_saved_account,
@@ -558,11 +882,7 @@ fn main() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {
-                if let Some(state) = window.app_handle().try_state::<PhpServer>() {
-                    if let Some(mut child) = state.0.lock().unwrap().take() {
-                        let _ = child.kill();
-                    }
-                }
+                detener_servidor(&window.app_handle());
                 licensing::dev_limpiar_licencia_al_salir(&window.app_handle());
             }
         })

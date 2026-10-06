@@ -25,6 +25,7 @@ Route::get('/', function (\Illuminate\Http\Request $request) {
 })->name('dashboard');
 
 Route::resource('financieras', FinancieraController::class)->except(['show']);
+Route::get('financieras-pdf', [FinancieraController::class, 'pdf'])->name('financieras.pdf');
 Route::resource('clientes', ClienteController::class);
 Route::post('clientes/{cliente}/notas', [ClienteController::class, 'storeNota'])->name('clientes.notas.store');
 Route::get('clientes/{cliente}/pdf', [ClienteController::class, 'pdf'])->name('clientes.pdf');

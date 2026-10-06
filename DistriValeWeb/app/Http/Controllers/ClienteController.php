@@ -121,7 +121,7 @@ class ClienteController extends Controller
             ->where(fn ($w) => $w->whereIn('estado', ['ACTIVO', 'EN_MORA'])
                 ->orWhere(fn ($l) => $l->where('estado', 'LIQUIDADO')
                     ->whereBetween('fecha_ultimo_pago', [$quincena['inicio']->copy()->startOfDay(), $quincena['fin']->copy()->endOfDay()])))
-            ->with('financiera')->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
+            ->with(['financiera', 'detallesRecibo'])->orderBy('id_financiera')->orderBy('fecha_disposicion')]);
 
         $pdf = Pdf::loadView('clientes.pdf', compact('cliente'));
 
