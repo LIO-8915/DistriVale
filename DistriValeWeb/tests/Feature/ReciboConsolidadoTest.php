@@ -270,7 +270,7 @@ class ReciboConsolidadoTest extends TestCase
     {
         $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
 
-        $this->post_store([])->assertSessionHasErrors('abonos');
+        $this->post_store([])->assertSessionHasErrors('recibos.0.abonos');
         $this->assertSame(0, ReciboConsolidado::count());
     }
 
@@ -282,12 +282,12 @@ class ReciboConsolidadoTest extends TestCase
         $ajeno = Vale::create(['id_cliente' => $otro->id_cliente, 'id_financiera' => $this->capta->id_financiera, 'folio_vale' => 'X1', 'fecha_disposicion' => now()->toDateString(),
             'monto_original' => 100, 'cuota_quincenal' => 10, 'total_quincenas' => 10, 'quincena_actual' => 1, 'saldo_pendiente' => 100, 'recargo_acumulado' => 0, 'quincenas_vencidas' => 0, 'estado' => 'ACTIVO']);
 
-        $this->post_store([$a->id_vale => 0])->assertSessionHasErrors('abonos.'.$a->id_vale);                  // cero
-        $this->post_store([$a->id_vale => -50])->assertSessionHasErrors('abonos.'.$a->id_vale);                // negativo
-        $this->post_store([$a->id_vale => 'mucho'])->assertSessionHasErrors('abonos.'.$a->id_vale);            // no numérico
-        $this->post_store([$a->id_vale => 99999.00])->assertSessionHasErrors('abonos.'.$a->id_vale);           // más de lo que debe
-        $this->post_store([$liq->id_vale => 100.00])->assertSessionHasErrors('abonos');                        // liquidado
-        $this->post_store([$ajeno->id_vale => 10.00])->assertSessionHasErrors('abonos');                       // de otro cliente
+        $this->post_store([$a->id_vale => 0])->assertSessionHasErrors('recibos.0.abonos.'.$a->id_vale);                  // cero
+        $this->post_store([$a->id_vale => -50])->assertSessionHasErrors('recibos.0.abonos.'.$a->id_vale);                // negativo
+        $this->post_store([$a->id_vale => 'mucho'])->assertSessionHasErrors('recibos.0.abonos.'.$a->id_vale);            // no numérico
+        $this->post_store([$a->id_vale => 99999.00])->assertSessionHasErrors('recibos.0.abonos.'.$a->id_vale);           // más de lo que debe
+        $this->post_store([$liq->id_vale => 100.00])->assertSessionHasErrors('recibos.0.abonos');                        // liquidado
+        $this->post_store([$ajeno->id_vale => 10.00])->assertSessionHasErrors('recibos.0.abonos');                       // de otro cliente
 
         $this->assertSame(0, ReciboConsolidado::count(), 'ninguno de los intentos inválidos crea recibo');
     }
@@ -296,8 +296,138 @@ class ReciboConsolidadoTest extends TestCase
     {
         $this->vale($this->capta, 'D1000099', 500.00, 0.00, 'LIQUIDADO');
 
-        $this->post_store([1 => 100.00])->assertSessionHasErrors('id_cliente');
+        $this->post_store([1 => 100.00])->assertSessionHasErrors('recibos.0.id_cliente');
         $this->assertSame(0, ReciboConsolidado::count());
+    }
+
+    // ------------------------------------------------------------------ Varios recibos en una operación
+
+    private function otroCliente(string $nombre, string $folio, float $cuota = 200.00, float $saldo = 2000.00): array
+    {
+        $c = Cliente::create(['nombre_completo' => $nombre, 'activo' => true]);
+        $v = Vale::create(['id_cliente' => $c->id_cliente, 'id_financiera' => $this->dportenis->id_financiera, 'folio_vale' => $folio, 'fecha_disposicion' => now()->toDateString(),
+            'monto_original' => $saldo, 'cuota_quincenal' => $cuota, 'total_quincenas' => 10, 'quincena_actual' => 1, 'saldo_pendiente' => $saldo, 'recargo_acumulado' => 0, 'quincenas_vencidas' => 0, 'estado' => 'ACTIVO']);
+
+        return [$c, $v];
+    }
+
+    private function recibo(Cliente $c, array $abonos, string $corte = '2026-09-30'): array
+    {
+        return ['id_cliente' => $c->id_cliente, 'nombre_distribuidora' => 'ELIA MARIA VELIZ MURILLO', 'fecha_corte' => $corte, 'abonos' => $abonos];
+    }
+
+    public function test_se_generan_varios_recibos_cada_uno_con_su_cliente_en_una_sola_operacion(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        $b = $this->vale($this->dportenis, 'WFHUHPZHQW', 745.00, 3725.00);
+        [$otro, $vOtro] = $this->otroCliente('SEGUNDO CLIENTE', 'S-1');
+
+        $r = $this->post(route('recibos.store'), ['recibos' => [
+            $this->recibo($this->cliente, [$a->id_vale => 1110.00]),
+            $this->recibo($this->cliente, [$b->id_vale => 745.00]),
+            $this->recibo($otro, [$vOtro->id_vale => 150.00]),
+        ]]);
+
+        $this->assertSame(3, ReciboConsolidado::count());
+        $ids = ReciboConsolidado::orderBy('id_recibo')->pluck('id_recibo')->implode(',');
+        $r->assertRedirect(route('recibos.resumen', ['ids' => $ids]));
+        $this->assertSame([$this->cliente->id_cliente, $this->cliente->id_cliente, $otro->id_cliente], ReciboConsolidado::orderBy('id_recibo')->pluck('id_cliente')->all());
+        $this->assertEqualsWithDelta(150.00, (float) ReciboConsolidado::orderBy('id_recibo')->get()[2]->total_oportuno, 0.001);
+    }
+
+    public function test_un_credito_no_puede_ir_en_dos_recibos_y_no_se_crea_ninguno(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        $b = $this->vale($this->capta, 'D1000002', 879.00, 8790.00);
+
+        $this->post(route('recibos.store'), ['recibos' => [
+            $this->recibo($this->cliente, [$a->id_vale => 500.00, $b->id_vale => 879.00]),
+            $this->recibo($this->cliente, [$a->id_vale => 610.00]),                 // el mismo crédito en otro recibo
+        ]])->assertSessionHasErrors('recibos.1.abonos.'.$a->id_vale);
+
+        $this->assertSame(0, ReciboConsolidado::count(), 'ni siquiera el primero (que era válido) queda guardado');
+        $this->assertStringContainsString('D1000001 está en el recibo 1 y en el 2', session('errors')->first('recibos.1.abonos.'.$a->id_vale));
+    }
+
+    public function test_si_un_recibo_es_invalido_no_se_guarda_ninguno(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        [$otro, $vOtro] = $this->otroCliente('SEGUNDO CLIENTE', 'S-1');
+
+        $this->post(route('recibos.store'), ['recibos' => [
+            $this->recibo($this->cliente, [$a->id_vale => 1110.00]),
+            $this->recibo($otro, [$vOtro->id_vale => 999999.00]),                    // más de lo que debe
+        ]])->assertSessionHasErrors('recibos.1.abonos.'.$vOtro->id_vale);
+
+        $this->assertSame(0, ReciboConsolidado::count());
+    }
+
+    public function test_un_recibo_no_puede_llevar_creditos_de_otro_cliente(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        [$otro, $vOtro] = $this->otroCliente('SEGUNDO CLIENTE', 'S-1');
+
+        $this->post(route('recibos.store'), ['recibos' => [
+            $this->recibo($this->cliente, [$a->id_vale => 100.00, $vOtro->id_vale => 100.00]),   // el segundo es de OTRO cliente
+        ]])->assertSessionHasErrors('recibos.0.abonos');
+
+        $this->assertSame(0, ReciboConsolidado::count());
+    }
+
+    public function test_hay_un_maximo_de_recibos_por_operacion(): void
+    {
+        $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        $recibos = array_fill(0, \App\Http\Controllers\ReciboController::MAX_RECIBOS + 1, $this->recibo($this->cliente, [1 => 10.00]));
+
+        $this->post(route('recibos.store'), ['recibos' => $recibos])->assertSessionHasErrors('recibos');
+        $this->assertSame(0, ReciboConsolidado::count());
+    }
+
+    public function test_el_resumen_lista_los_recibos_y_junta_el_texto_de_todos(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        [$otro, $vOtro] = $this->otroCliente('SEGUNDO CLIENTE', 'S-1');
+        $this->post(route('recibos.store'), ['recibos' => [
+            $this->recibo($this->cliente, [$a->id_vale => 1110.00]),
+            $this->recibo($otro, [$vOtro->id_vale => 200.00]),
+        ]]);
+        $ids = ReciboConsolidado::orderBy('id_recibo')->pluck('id_recibo');
+
+        $r = $this->get(route('recibos.resumen', ['ids' => $ids->implode(',')]))->assertOk();
+
+        $r->assertSee('RAMON ARTURO BURGOIN GUERRERO');
+        $r->assertSee('SEGUNDO CLIENTE');
+        $r->assertSee('Copiar todo');
+        $r->assertSee(route('recibos.show', $ids[0]), false);
+        $r->assertSee(route('recibos.show', $ids[1]), false);
+        $r->assertSee('$1,310.00');                                              // total oportuno general: 1,110 + 200
+        $r->assertSee('Folio D1000001 | Pago ', false);
+        $r->assertSee('Folio S-1 | Pago ', false);
+        $r->assertSee('----------------', false);                                // separador entre recibos
+    }
+
+    public function test_el_resumen_sin_recibos_validos_da_404(): void
+    {
+        $this->get(route('recibos.resumen', ['ids' => '9999']))->assertNotFound();
+        $this->get(route('recibos.resumen'))->assertNotFound();
+    }
+
+    public function test_el_selector_avisa_de_los_creditos_que_ya_estan_en_un_recibo_sin_pagar(): void
+    {
+        $a = $this->vale($this->capta, 'D1000001', 1110.00, 11100.00);
+        $b = $this->vale($this->capta, 'D1000002', 879.00, 8790.00);
+        $recibo = $this->generar([$a->id_vale => 1110.00]);                         // queda pendiente (sin pagar)
+
+        $json = $this->getJson(route('recibos.vales-cliente', $this->cliente))->assertOk()->json();
+
+        $this->assertSame($recibo->id_recibo, $json[0]['recibo_pendiente']['id']);
+        $this->assertSame('30/09/2026', $json[0]['recibo_pendiente']['fecha']);
+        $this->assertNull($json[1]['recibo_pendiente'], 'el que no está en ningún recibo no avisa');
+
+        // Una vez pagado el recibo, el aviso desaparece
+        $this->post(route('recibos.confirmar-pago', $recibo), ['fecha_pago' => '2026-10-05', 'montos' => [$recibo->detalles->first()->id_detalle => 1110.00]]);
+        $json = $this->getJson(route('recibos.vales-cliente', $this->cliente))->json();
+        $this->assertNull(collect($json)->firstWhere('folio', 'D1000001')['recibo_pendiente']);
     }
 
     public function test_se_puede_abonar_el_saldo_completo_y_queda_en_cero(): void

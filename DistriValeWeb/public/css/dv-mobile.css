@@ -131,6 +131,36 @@
     .dv-conexion-sacudir { animation: none; }
 }
 
+/* Pantalla de "conexión perdida" (dv-conexion.js, tras 8s sin respuesta): tapa TODA la app para
+   que no quede una vista congelada o con esqueletos a medio cargar. Mismo estilo que la pantalla
+   de pedir código (remoto/acceso), porque es a donde lleva al volver la conexión. */
+.dv-sin-conexion {
+    position: fixed; inset: 0; z-index: 2000; display: none; align-items: center; justify-content: center;
+    padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+    color: #eef1f8; overflow-y: auto;
+    background:
+        radial-gradient(900px 560px at 14% -8%, rgba(79, 124, 255, .35), transparent 60%),
+        radial-gradient(760px 520px at 100% 8%, rgba(139, 107, 255, .28), transparent 55%),
+        linear-gradient(180deg, #131c2b 0%, #0a111c 100%);
+}
+.dv-sin-conexion.show { display: flex; }
+.dv-sin-conexion-card {
+    width: 100%; max-width: 460px; padding: 2rem 1.5rem; border-radius: 22px; text-align: center;
+    border: 1px solid rgba(255, 255, 255, .28);
+    background: linear-gradient(135deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05) 55%, rgba(255, 255, 255, .09));
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .35), 0 1px 0 rgba(255, 255, 255, .12) inset;
+}
+.dv-sin-conexion-icono { display: block; font-size: 3rem; line-height: 1; margin-bottom: .6rem; color: #ffb976; }
+.dv-sin-conexion-card h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; margin: 0 0 .6rem; color: #fff; }
+.dv-sin-conexion-card p { color: rgba(238, 241, 248, .78); line-height: 1.55; margin: 0 0 1.25rem; font-size: .98rem; }
+.dv-sin-conexion-giro { width: 1.6rem; height: 1.6rem; border-width: .2em; color: #9db8ff; margin-bottom: 1.1rem; }
+.dv-sin-conexion-card .btn-dv-sc {
+    display: block; width: 100%; min-height: 52px; border: 0; border-radius: 14px; font-weight: 700; font-size: 1.02rem; color: #fff;
+    background: linear-gradient(135deg, #3159d8, #4f7cff); box-shadow: 0 10px 24px rgba(79, 124, 255, .35);
+}
+.dv-sin-conexion-card .btn-dv-sc:disabled { opacity: .65; }
+html.dv-sin-conexion-activa body { overflow: hidden; }
+
 /* ---------- Fecha legible bajo cada <input type="date"> (dv-mobile.js, pantallas táctiles) ----------
    El selector de fecha nativo de un celular/iPad muestra el formato de su idioma de sistema:
    en inglés "10/06/2026" es 6 de octubre, pero se lee como 10 de junio. Al lado se escribe

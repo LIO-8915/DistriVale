@@ -43,51 +43,71 @@
             </table>
         </div>
 
-        @forelse ($porCliente as $valesCliente)
-            @php $cliente = $valesCliente->first()->cliente; @endphp
-            <div class="pdf-client-card {{ $loop->index % 2 === 1 ? 'pdf-client-card-r' : '' }}">
-                <div class="pdf-client-header">{{ $cliente->nombre_completo }}</div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Folio</th>
-                            <th>Fecha</th>
-                            <th>Núm. pago</th>
-                            <th class="pdf-num">Saldo ant.</th>
-                            <th class="pdf-num">Importe</th>
-                            <th class="pdf-num">Nuevo saldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($valesCliente as $vale)
-                            @php
-                                $saldoAnterior = (float) $vale->saldo_pendiente;
-                                $importe = $vale->montoProximoPago();
-                                $nuevoSaldo = max(0, round($saldoAnterior - $importe, 2));
-                            @endphp
-                            <tr>
-                                <td>{{ $vale->folio_vale }}</td>
-                                <td style="white-space: nowrap;">{{ $vale->fecha_disposicion?->format('d/m/y') ?? '—' }}</td>
-                                <td style="white-space: nowrap;">{{ $vale->numeroPagoTexto() }}</td>
-                                <td class="pdf-num">${{ number_format($saldoAnterior, 2) }}</td>
-                                <td class="pdf-num">${{ number_format($importe, 2) }}</td>
-                                <td class="pdf-num">${{ number_format($nuevoSaldo, 2) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3">TOTALES</td>
-                            <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => (float) $v->saldo_pendiente), 2) }}</td>
-                            <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => $v->montoProximoPago()), 2) }}</td>
-                            <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => max(0, round((float) $v->saldo_pendiente - $v->montoProximoPago(), 2))), 2) }}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        @empty
+        @if ($porCliente->isEmpty())
             <div class="pdf-card"><span class="pdf-muted">Sin créditos vigentes con esta financiera.</span></div>
-        @endforelse
+        @else
+            {{-- Dos tarjetas por fila en una TABLA, no con float: dompdf se descompone con floats de
+                 altura distinta (todas las tarjetas se apilaban en una sola hoja, encimadas y fuera del
+                 papel). Cada fila cabe completa en una hoja o pasa entera a la siguiente. --}}
+            <table class="pdf-grid">
+                @foreach ($porCliente->chunk(2) as $par)
+                    <tr>
+                        @foreach ($par as $valesCliente)
+                            @php $cliente = $valesCliente->first()->cliente; @endphp
+                            <td class="pdf-grid-cell {{ $loop->last && $par->count() === 2 ? 'pdf-grid-r' : '' }}">
+                                <div class="pdf-client-card">
+                                    <div class="pdf-client-header">{{ $cliente->nombre_completo }}</div>
+                                    <table>
+                                        <colgroup>
+                                            <col style="width: 17%"><col style="width: 14%"><col style="width: 12%">
+                                            <col style="width: 19%"><col style="width: 19%"><col style="width: 19%">
+                                        </colgroup>
+                                        <thead>
+                                            <tr>
+                                                <th>Folio</th>
+                                                <th>Fecha</th>
+                                                <th>Núm. pago</th>
+                                                <th class="pdf-num">Saldo ant.</th>
+                                                <th class="pdf-num">Importe</th>
+                                                <th class="pdf-num">Nuevo saldo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($valesCliente as $vale)
+                                                @php
+                                                    $saldoAnterior = (float) $vale->saldo_pendiente;
+                                                    $importe = $vale->montoProximoPago();
+                                                    $nuevoSaldo = max(0, round($saldoAnterior - $importe, 2));
+                                                @endphp
+                                                <tr>
+                                                    <td>{{ $vale->folio_vale }}</td>
+                                                    <td style="white-space: nowrap;">{{ $vale->fecha_disposicion?->format('d/m/y') ?? '—' }}</td>
+                                                    <td style="white-space: nowrap;">{{ $vale->numeroPagoTexto() }}</td>
+                                                    <td class="pdf-num">${{ number_format($saldoAnterior, 2) }}</td>
+                                                    <td class="pdf-num">${{ number_format($importe, 2) }}</td>
+                                                    <td class="pdf-num">${{ number_format($nuevoSaldo, 2) }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="3">TOTALES</td>
+                                                <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => (float) $v->saldo_pendiente), 2) }}</td>
+                                                <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => $v->montoProximoPago()), 2) }}</td>
+                                                <td class="pdf-num">${{ number_format($valesCliente->sum(fn ($v) => max(0, round((float) $v->saldo_pendiente - $v->montoProximoPago(), 2))), 2) }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </td>
+                        @endforeach
+                        @if ($par->count() === 1)
+                            <td class="pdf-grid-cell pdf-grid-r"></td>
+                        @endif
+                    </tr>
+                @endforeach
+            </table>
+        @endif
         <div class="pdf-clear"></div>
 
         <div class="pdf-footer-note">

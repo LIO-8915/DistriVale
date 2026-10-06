@@ -116,4 +116,6 @@
 
     initAll();
     document.addEventListener('dv:nav-swapped', initAll);
+    // Para pantallas que agregan buscadores al vuelo (Generar recibo: "+ Agregar recibo").
+    window.DvSearchSelect = { init: init, initAll: initAll };
 })();

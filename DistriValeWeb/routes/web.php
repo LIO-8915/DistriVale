@@ -37,6 +37,7 @@ Route::controller(ReciboController::class)->prefix('recibos')->name('recibos.')-
     Route::get('/', 'index')->name('index');
     Route::get('/nuevo', 'create')->name('create');
     Route::get('/cliente/{cliente}/vales', 'valesDeCliente')->name('vales-cliente');
+    Route::get('/resumen', 'resumen')->name('resumen');
     Route::post('/', 'store')->name('store');
     Route::get('/{recibo}', 'show')->name('show');
     Route::post('/{recibo}/confirmar-pago', 'confirmarPago')->name('confirmar-pago');

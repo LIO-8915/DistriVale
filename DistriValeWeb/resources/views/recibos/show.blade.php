@@ -20,27 +20,7 @@
     $fechaCorte = $recibo->fecha_corte->format('d/m/Y');
     $conPena = collect($resumen)->filter(fn ($f) => $f['pct'] > 0);
 
-    // Texto para pegar en WhatsApp u otra app: todo lo que lleva la pantalla.
-    $lineas = [
-        $recibo->nombre_distribuidora,
-        'Recibo consolidado - corte '.$fechaCorte,
-        'Cliente: '.$recibo->cliente->nombre_completo.' ('.$recibo->codigoCliente().')',
-    ];
-    if ($recibo->cliente->telefono) { $lineas[] = 'Teléfono: '.$recibo->cliente->telefono; }
-    $lineas[] = $pagado ? 'Pagado el '.$recibo->fecha_pago->format('d/m/Y') : 'Pendiente de pago';
-    foreach ($resumen as $f) {
-        $lineas[] = '';
-        $lineas[] = $f['nombre'].($f['pct'] > 0 ? ' (pena '.rtrim(rtrim(number_format($f['pct'], 2), '0'), '.').'%)' : '');
-        foreach ($detalles->filter(fn ($d) => (int) $d->vale->id_financiera === $f['id']) as $d) {
-            $lineas[] = 'Folio '.$d->vale->folio_vale.' | Pago '.$d->numero_pago_texto.' | '.$dinero($d->monto_pago).' | Nuevo saldo: '.$dinero($d->nuevo_saldo);
-        }
-        $lineas[] = 'Subtotal '.$f['nombre'].' ('.$f['vales'].' '.($f['vales'] === 1 ? 'vale' : 'vales').'): '.$dinero($f['monto']);
-    }
-    $lineas[] = '';
-    $lineas[] = 'Total pago oportuno: '.$dinero($recibo->total_oportuno);
-    $lineas[] = 'Pago después del '.$fechaCorte.': '.$dinero($recibo->total_extemporaneo);
-    if ($pagado) { $lineas[] = 'Total pagado: '.$dinero($recibo->totalCapturado()); }
-    $textoRecibo = implode("\n", $lineas);
+    $textoRecibo = $recibo->textoParaCopiar();
 @endphp
 
 <div class="card p-4 mx-auto dv-recibo" id="recibo-card">

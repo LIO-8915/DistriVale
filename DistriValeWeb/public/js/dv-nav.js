@@ -45,6 +45,11 @@
     // (ver dv-motion.js). Si el servidor tarda más, manda el servidor.
     var MIN_NAV_MS = 180;
 
+    // Si el servidor no responde en este tiempo se da por perdida la conexión. Sin límite, con el
+    // Wi-Fi cortado a medias el fetch podía quedarse colgado minutos y la pantalla se quedaba con el
+    // esqueleto de carga puesto, sin funcionar (visto en un celular real).
+    var NAV_TIMEOUT_MS = 10000;
+
     var outAnim = null;
     var skelTimer = null;
 
@@ -217,6 +222,8 @@
         if (inFlight) inFlight.abort();
         var controller = new AbortController();
         inFlight = controller;
+        var venció = false;   // true = se canceló por tiempo agotado, no porque otra navegación la reemplazó
+        var limite = setTimeout(function () { venció = true; controller.abort(); }, NAV_TIMEOUT_MS);
 
         // Si ya hay una salida en curso (clic rápido sobre otra pantalla), la
         // vista ya está atenuada: se reutiliza en vez de apilar otra.
@@ -270,6 +277,8 @@
                 return true;
             })
             .catch(function (err) {
+                // Tiempo agotado = el servidor no contesta: es un problema de red, no una navegación reemplazada.
+                if (err && err.name === 'AbortError' && venció) err = { name: 'TimeoutError', dvRed: true };
                 if (!err || err.name === 'AbortError') return false;
                 // Sin conexión con la computadora (dv-conexion.js, solo en dispositivos
                 // remotos): se queda en la pantalla actual y avisa, en vez de llevar a la
@@ -279,6 +288,7 @@
                 return false;
             })
             .finally(function () {
+                clearTimeout(limite);
                 if (inFlight === controller) {
                     inFlight = null;
                     setLoading(false);

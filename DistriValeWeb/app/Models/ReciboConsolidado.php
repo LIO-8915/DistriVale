@@ -107,4 +107,46 @@ class ReciboConsolidado extends Model
     {
         return round($this->detalles->sum(fn (DetalleReciboVale $d) => (float) $d->monto_pago), 2);
     }
+
+    /**
+     * Texto del recibo para pegar en WhatsApp u otra app: todo lo que lleva la pantalla
+     * (cliente con su código, estado, créditos por financiera con su subtotal, totales y pena).
+     * Requiere cargadas las relaciones cliente y detalles.vale.financiera.
+     */
+    public function textoParaCopiar(): string
+    {
+        $dinero = fn ($n) => '$'.number_format((float) $n, 2);
+        $pagado = $this->estaPagado();
+        $fechaCorte = $this->fecha_corte->format('d/m/Y');
+        $detalles = $this->detallesOrdenados();
+        $porcentaje = fn (float $p) => rtrim(rtrim(number_format($p, 2), '0'), '.');
+
+        $lineas = [
+            $this->nombre_distribuidora,
+            'Recibo consolidado - corte '.$fechaCorte,
+            'Cliente: '.$this->cliente->nombre_completo.' ('.$this->codigoCliente().')',
+        ];
+        if ($this->cliente->telefono) {
+            $lineas[] = 'Teléfono: '.$this->cliente->telefono;
+        }
+        $lineas[] = $pagado ? 'Pagado el '.$this->fecha_pago->format('d/m/Y') : 'Pendiente de pago';
+
+        foreach ($this->resumenPorFinanciera() as $f) {
+            $lineas[] = '';
+            $lineas[] = $f['nombre'].($f['pct'] > 0 ? ' (pena '.$porcentaje($f['pct']).'%)' : '');
+            foreach ($detalles->filter(fn ($d) => (int) $d->vale->id_financiera === $f['id']) as $d) {
+                $lineas[] = 'Folio '.$d->vale->folio_vale.' | Pago '.$d->numero_pago_texto.' | '.$dinero($d->monto_pago).' | Nuevo saldo: '.$dinero($d->nuevo_saldo);
+            }
+            $lineas[] = 'Subtotal '.$f['nombre'].' ('.$f['vales'].' '.($f['vales'] === 1 ? 'vale' : 'vales').'): '.$dinero($f['monto']);
+        }
+
+        $lineas[] = '';
+        $lineas[] = 'Total pago oportuno: '.$dinero($this->total_oportuno);
+        $lineas[] = 'Pago después del '.$fechaCorte.': '.$dinero($this->total_extemporaneo);
+        if ($pagado) {
+            $lineas[] = 'Total pagado: '.$dinero($this->totalCapturado());
+        }
+
+        return implode("\n", $lineas);
+    }
 }
