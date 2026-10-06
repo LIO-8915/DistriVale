@@ -117,6 +117,26 @@
         currentLinks.forEach(function (a) {
             a.classList.toggle('active', !!nextActive && a.getAttribute('href') === nextActive.getAttribute('href'));
         });
+        syncMobileNav(doc);
+    }
+
+    // Barra inferior y hoja "Más" (solo se ven en celular, ver css/dv-mobile.css):
+    // mismos enlaces que la sidebar, así que se les copia cuál está activo.
+    function syncMobileNav(doc) {
+        ['.dv-bottomnav', '.dv-mas-sheet'].forEach(function (sel) {
+            var next = doc.querySelector(sel);
+            var current = document.querySelector(sel);
+            if (!next || !current) return;
+            var activos = {};
+            next.querySelectorAll('a.active').forEach(function (a) { activos[a.getAttribute('href')] = true; });
+            current.querySelectorAll('a').forEach(function (a) {
+                a.classList.toggle('active', !!activos[a.getAttribute('href')]);
+            });
+        });
+        // "Más" se marca cuando la pantalla actual es una de las que viven en su hoja.
+        var nextMore = doc.querySelector('.dv-bottomnav-more');
+        var currentMore = document.querySelector('.dv-bottomnav-more');
+        if (nextMore && currentMore) currentMore.classList.toggle('active', nextMore.classList.contains('active'));
     }
 
     function runPageScripts(doc) {
@@ -220,11 +240,18 @@
             ? new Promise(function (resolve) { setTimeout(resolve, MIN_NAV_MS); })
             : Promise.resolve();
 
-        fetch(url, {
+        return fetch(url, {
             headers: { 'X-DV-Nav': '1' },
             credentials: 'same-origin',
             signal: controller.signal,
         })
+            // Marca solo el fallo del fetch (servidor inalcanzable). Un error posterior,
+            // al armar la pantalla, no es un problema de red y sigue cayendo a la
+            // navegación completa de abajo.
+            .catch(function (err) {
+                if (err && err.name !== 'AbortError') err.dvRed = true;
+                throw err;
+            })
             .then(function (res) {
                 var type = res.headers.get('Content-Type') || '';
                 if (!res.ok || type.indexOf('text/html') === -1) {
@@ -238,11 +265,18 @@
                 return minWait.then(function () { return html; });
             })
             .then(function (html) {
-                if (controller.signal.aborted) return;
+                if (controller.signal.aborted) return false;
                 if (html !== null) applySwap(html, url, push, animate);
+                return true;
             })
             .catch(function (err) {
-                if (err && err.name !== 'AbortError') window.location.href = url;
+                if (!err || err.name === 'AbortError') return false;
+                // Sin conexión con la computadora (dv-conexion.js, solo en dispositivos
+                // remotos): se queda en la pantalla actual y avisa, en vez de llevar a la
+                // página de error del navegador. Devuelve false = "no se actualizó".
+                if (err.dvRed && window.DvConexion && window.DvConexion.caida()) return false;
+                window.location.href = url;
+                return false;
             })
             .finally(function () {
                 if (inFlight === controller) {
@@ -275,6 +309,9 @@
     // Lets a page's own script (e.g. one polling for a change that happened
     // outside the WebView, like finishing Google's login in the system
     // browser) re-fetch and swap the current screen through the same pjax
-    // path a link click would use, instead of a jarring full reload.
-    window.DvNav = { refresh: function () { navigate(window.location.href, false, false); } };
+    // path a link click would use, instead of a jarring full reload. Devuelve una
+    // promesa que se cumple al terminar (también si falló): true = se actualizó,
+    // false = no (sin conexión, o la petición se canceló), para "jalar para
+    // actualizar" (dv-mobile.js).
+    window.DvNav = { refresh: function () { return navigate(window.location.href, false, false); } };
 })();

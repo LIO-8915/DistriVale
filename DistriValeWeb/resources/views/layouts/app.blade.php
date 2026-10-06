@@ -2,7 +2,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    {{-- Sin user-scalable=no: en celular hay que poder pellizcar para ampliar (accesibilidad).
+         viewport-fit=cover deja usar env(safe-area-inset-*) en equipos con muesca/barra de gestos. --}}
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0c4660">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>DistriVale - @yield('title', 'Panel')</title>
     <!-- Every asset below is vendored locally (public/vendor/) instead of loaded from a CDN:
@@ -850,8 +853,10 @@
             .dv-main { padding-left: clamp(1.75rem, 2vw, 3rem); padding-right: clamp(1.75rem, 2vw, 3rem); }
         }
     </style>
+    {{-- Celulares: después del <style> de arriba a propósito (a igual especificidad gana lo último). --}}
+    <link rel="stylesheet" href="{{ asset('css/dv-mobile.css') }}?v={{ filemtime(public_path('css/dv-mobile.css')) }}">
 </head>
-<body>
+<body data-remoto="{{ $esRemoto ? '1' : '0' }}">
     <div id="dv-progress"></div>
     <div class="dv-nav-slow-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando…</span></div></div>
     <div id="dv-preloader">
@@ -909,6 +914,43 @@
             <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> <span class="dv-label">Sistema local</span></div>
         @endif
     </nav>
+
+    {{-- Celulares (< 600px): la sidebar se oculta y esta barra inferior toma su lugar —
+         ver css/dv-mobile.css. Fuera de celular no se ve. Cuatro accesos directos (lo de
+         uso diario) y "Más", que abre la hoja con el resto. dv-nav.js sincroniza cuál está activo. --}}
+    <nav class="dv-bottomnav" aria-label="Navegación principal">
+        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="bi bi-house-door"></i><span>Inicio</span></a>
+        <a href="{{ route('clientes.index') }}" class="{{ request()->routeIs('clientes.*') ? 'active' : '' }}"><i class="bi bi-people"></i><span>Clientes</span></a>
+        <a href="{{ route('vales.index') }}" class="{{ request()->routeIs('vales.*') ? 'active' : '' }}"><i class="bi bi-ticket-perforated"></i><span>Vales</span></a>
+        <a href="{{ route('recibos.index') }}" class="{{ request()->routeIs('recibos.*') ? 'active' : '' }}"><i class="bi bi-receipt"></i><span>Cobranza</span></a>
+        <button type="button" class="dv-bottomnav-more {{ request()->routeIs('financieras.*', 'liquidaciones.*', 'drive.*', 'acceso-remoto.*') ? 'active' : '' }}"
+                data-bs-toggle="offcanvas" data-bs-target="#dvMasSheet" aria-controls="dvMasSheet">
+            <i class="bi bi-grid"></i><span>Más</span>
+        </button>
+    </nav>
+    <div class="offcanvas offcanvas-bottom dv-mas-sheet" tabindex="-1" id="dvMasSheet" aria-labelledby="dvMasSheetLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="dvMasSheetLabel">Más opciones</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="dv-mas-grid">
+                <a href="{{ route('financieras.index') }}" class="{{ request()->routeIs('financieras.*') ? 'active' : '' }}"><i class="bi bi-bank"></i> Financieras</a>
+                <a href="{{ route('liquidaciones.index') }}" class="{{ request()->routeIs('liquidaciones.*') ? 'active' : '' }}"><i class="bi bi-calculator"></i> Liquidación</a>
+                <a href="{{ route('drive.index') }}" class="{{ request()->routeIs('drive.*') ? 'active' : '' }}"><i class="bi bi-cloud-arrow-up"></i> Respaldo</a>
+                @unless ($esRemoto)
+                    <a href="{{ route('acceso-remoto.index') }}" class="{{ request()->routeIs('acceso-remoto.*') ? 'active' : '' }}"><i class="bi bi-tablet"></i> Acceso remoto</a>
+                @endunless
+            </div>
+            @if ($esRemoto)
+                <form class="dv-mas-pie" method="POST" action="{{ route('remoto.salir') }}">
+                    @csrf
+                    <i class="bi bi-wifi"></i> Remoto ·
+                    <button type="submit" class="btn btn-link btn-sm p-0" style="color: inherit;">Desconectar</button>
+                </form>
+            @endif
+        </div>
+    </div>
 
     <main class="dv-main">
         <div class="dv-topbar">
@@ -1082,9 +1124,11 @@
 
     <script src="{{ asset('js/dv-motion.js') }}"></script>
     <script src="{{ asset('js/dv-nav.js') }}"></script>
+    <script src="{{ asset('js/dv-conexion.js') }}?v={{ filemtime(public_path('js/dv-conexion.js')) }}"></script>
     <script src="{{ asset('js/dv-ui.js') }}"></script>
     <script src="{{ asset('js/dv-searchselect.js') }}"></script>
     <script src="{{ asset('js/dv-confirm.js') }}"></script>
+    <script src="{{ asset('js/dv-mobile.js') }}?v={{ filemtime(public_path('js/dv-mobile.js')) }}"></script>
 
     <script>
         // Reveal gate: the whole page starts hidden behind #dv-preloader (see

@@ -35,10 +35,10 @@
     </div>
 </div>
 
-{{-- Total + 5 financieras = 6 tarjetas: 6 / 3 / 2 / 1 por fila, siempre
+{{-- Total + 5 financieras = 6 tarjetas: 6 / 3 / 2 por fila (2 también en celular), siempre
      en filas parejas (nunca 4 + 2) al cambiar el ancho de la ventana. --}}
 <div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6 col-lg-4 col-xxl-2">
+    <div class="col-6 col-lg-4 col-xxl-2">
         <div class="card stat-card p-3 h-100">
             <div class="d-flex align-items-center gap-2">
                 <span class="stat-icon icon-blue" style="width:36px;height:36px;font-size:.9rem;"><i class="bi bi-people-fill"></i></span>
@@ -50,7 +50,7 @@
         </div>
     </div>
     @foreach ($porFinanciera as $f)
-        <div class="col-12 col-sm-6 col-lg-4 col-xxl-2">
+        <div class="col-6 col-lg-4 col-xxl-2">
             <div class="card stat-card p-3 h-100">
                 <div class="d-flex align-items-center gap-2">
                     <span class="stat-icon icon-purple" style="width:36px;height:36px;font-size:.9rem;"><i class="bi bi-bank"></i></span>

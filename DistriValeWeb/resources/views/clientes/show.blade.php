@@ -32,7 +32,7 @@
     </div>
     <div class="col-lg-7">
         <div class="card p-3 h-100">
-            <div class="row text-center h-100 align-items-center">
+            <div class="row text-center h-100 align-items-center dv-resumen-fila">
                 <div class="col-4 border-end">
                     <div class="text-muted small">Saldo global</div>
                     <div class="fw-bold fs-5">${{ number_format($cliente->saldoTotal(), 2) }}</div>

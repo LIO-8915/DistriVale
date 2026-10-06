@@ -1,0 +1,370 @@
+/* =====================================================================
+   DistriVale — celulares (y "jalar para actualizar" en pantallas táctiles)
+
+   Se carga DESPUÉS del <style> del layout, así que a igual especificidad
+   gana lo de aquí. Todo lo que sea de celular vive dentro de
+   `@media (max-width: 599.98px)`: de 600px hacia arriba (tablet, iPad,
+   PC) la app se ve exactamente como antes.
+
+   CUATRO CATEGORÍAS por ancho CSS en vertical. Los números salen de lo
+   que reporta el navegador de cada equipo (no de los píxeles físicos):
+
+   ┌──────────────┬──────────┬───────────────────────────────────────────┐
+   │ Categoría    │ Ancho CSS│ Equipos de referencia                     │
+   ├──────────────┼──────────┼───────────────────────────────────────────┤
+   │ Compacto     │ ≤ 374    │ Galaxy S25/S26 base (360), serie A y      │
+   │              │          │ Redmi Note (360), plegables cerrados (344)│
+   │ Estándar     │ 375–399  │ iPhone SE (375), iPhone 15/16 (393)       │
+   │ Grande       │ 400–429  │ iPhone 16 Pro/17 (402), Pixel 9/10 (412), │
+   │              │          │ Galaxy S25/S26 Ultra (412), Redmi Turbo 4 │
+   │              │          │ Pro / POCO F7 (≈427)                      │
+   │ Extra grande │ 430–599  │ iPhone Plus/Pro Max (430–440), POCO F7    │
+   │              │          │ Pro (480), plegables abiertos chicos      │
+   └──────────────┴──────────┴───────────────────────────────────────────┘
+
+   Lo que cambia entre categorías son TOKENS (márgenes, alto de la barra
+   inferior, tamaño mínimo de toque y escala del texto), no reglas
+   sueltas. La escala del texto va en porcentaje (no en px) para respetar
+   el "tamaño de fuente" que la persona tenga en los ajustes del teléfono.
+   dv-mobile.js pone data-pantalla="compacto|estandar|grande|extra" en
+   <html> (útil para depurar y para el JS).
+   ===================================================================== */
+
+/* El contenedor que scrollea es .dv-main (el <body> no scrollea). Sin esto el
+   navegador encadena el "rebote" al documento y en Chrome/Samsung dispara su
+   propio jalar-para-recargar encima del nuestro. */
+.dv-main { overscroll-behavior-y: contain; }
+
+/* ---------- Jalar para actualizar (dv-mobile.js) ---------- */
+.dv-ptr {
+    position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 1040;
+    width: 46px; height: 46px; margin-left: -23px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; color: var(--dv-accent); font-size: 1.35rem;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .92) 0%, rgba(255, 255, 255, .68) 100%);
+    border: 1px solid rgba(255, 255, 255, .8);
+    box-shadow: 0 8px 22px rgba(30, 41, 59, .28), inset 0 1px 1px rgba(255, 255, 255, .9);
+    transform: translateY(calc(var(--dv-pull, 0px) - 58px));
+    opacity: min(1, calc(var(--dv-pull-n, 0) / 34));
+    visibility: hidden;
+}
+.dv-ptr.dv-ptr-visible { visibility: visible; }
+.dv-ptr.dv-ptr-soltado { transition: transform .3s var(--dv-spring), opacity .2s ease; }
+.dv-ptr .bi-arrow-down { transition: transform .18s ease; }
+.dv-ptr[data-estado="listo"] .bi-arrow-down { transform: rotate(180deg); }
+.dv-ptr[data-estado="listo"] { color: #fff; background: linear-gradient(135deg, var(--dv-accent), #6f9bff); }
+.dv-ptr[data-estado="ok"] { color: #fff; background: linear-gradient(135deg, #2bc48a, #57d9a5); }
+.dv-ptr[data-estado="bloqueado"] { color: #fff; background: linear-gradient(135deg, #ff9f43, #ffb976); }
+.dv-ptr .spinner-border { width: 1.5rem; height: 1.5rem; border-width: .18em; }
+/* Mensaje corto junto al círculo (solo cuando no se puede actualizar). */
+.dv-ptr-msg {
+    position: fixed; top: calc(env(safe-area-inset-top, 0px) + 56px); left: 50%; z-index: 1040;
+    transform: translateX(-50%); max-width: calc(100vw - 2rem); padding: .5rem .95rem;
+    border-radius: 999px; font-size: .9rem; font-weight: 600; color: #fff; text-align: center;
+    background: rgba(19, 28, 43, .88); box-shadow: 0 8px 22px rgba(0, 0, 0, .3);
+    pointer-events: none; opacity: 0; transition: opacity .2s ease;
+}
+.dv-ptr-msg.show { opacity: 1; }
+/* El contenido acompaña al dedo mientras se jala. */
+.dv-main.dv-ptr-activo > .dv-topbar,
+.dv-main.dv-ptr-activo > #dv-view { transform: translateY(var(--dv-pull, 0px)); }
+.dv-main.dv-ptr-soltado > .dv-topbar,
+.dv-main.dv-ptr-soltado > #dv-view { transition: transform .3s var(--dv-spring); }
+@media (prefers-reduced-motion: reduce) {
+    .dv-ptr.dv-ptr-soltado, .dv-main.dv-ptr-soltado > .dv-topbar, .dv-main.dv-ptr-soltado > #dv-view { transition: none; }
+}
+
+/* ---------- Aviso "Sin conexión con la computadora" (dv-conexion.js, solo dispositivos remotos) ---------- */
+.dv-conexion {
+    position: fixed; z-index: 1070; left: 50%; top: calc(env(safe-area-inset-top, 0px) + .6rem);
+    width: min(94vw, 520px); display: flex; align-items: center; gap: .8rem;
+    padding: .75rem .9rem; border-radius: 16px; color: #3b2300;
+    background: linear-gradient(135deg, rgba(255, 214, 153, .97), rgba(255, 190, 110, .95));
+    border: 1px solid rgba(255, 255, 255, .6);
+    box-shadow: 0 14px 34px rgba(30, 41, 59, .35), inset 0 1px 1px rgba(255, 255, 255, .7);
+    transform: translate(-50%, -160%); visibility: hidden;
+    transition: transform .35s var(--dv-spring), visibility 0s .35s;
+}
+.dv-conexion.show { transform: translate(-50%, 0); visibility: visible; transition: transform .35s var(--dv-spring), visibility 0s; }
+.dv-conexion.dv-conexion-ok { color: #06331f; background: linear-gradient(135deg, rgba(168, 238, 205, .97), rgba(120, 220, 175, .95)); }
+.dv-conexion-icono { font-size: 1.5rem; flex: 0 0 auto; }
+.dv-conexion-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.dv-conexion-txt strong { font-size: 1rem; }
+.dv-conexion-txt span { font-size: .85rem; }
+.dv-conexion-txt span:empty { display: none; }
+.dv-conexion-btn {
+    flex: 0 0 auto; min-height: 44px; padding: 0 1rem; border: 0; border-radius: 12px;
+    font-weight: 700; font-size: .95rem; color: #fff; background: #2b2f3a;
+}
+.dv-conexion-btn:disabled { opacity: .6; }
+.dv-conexion-sacudir { animation: dv-conexion-sacudir .4s ease; }
+@keyframes dv-conexion-sacudir {
+    0%, 100% { transform: translate(-50%, 0); }
+    20% { transform: translate(calc(-50% - 8px), 0); }
+    40% { transform: translate(calc(-50% + 8px), 0); }
+    60% { transform: translate(calc(-50% - 5px), 0); }
+    80% { transform: translate(calc(-50% + 5px), 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dv-conexion, .dv-conexion.show { transition: none; }
+    .dv-conexion-sacudir { animation: none; }
+}
+
+/* Si el teléfono se gira a horizontal después de haber etiquetado las tablas, el envoltorio
+   del valor no debe alterar el diseño de tabla normal. */
+.dv-stack-val { display: contents; }
+
+/* La barra inferior y su hoja "Más" solo existen en celular. */
+.dv-bottomnav, .dv-mas-sheet { display: none; }
+
+/* =====================================================================
+   CELULARES (ancho CSS < 600px, en vertical)
+   ===================================================================== */
+@media (max-width: 599.98px) {
+    :root {
+        --dv-m-gutter: .85rem;   /* margen lateral de la pantalla */
+        --dv-m-tap: 44px;        /* alto mínimo de todo lo que se toca */
+        --dv-m-bar-h: 62px;      /* alto de la barra inferior */
+        --dv-m-bar-gap: .6rem;   /* separación de la barra al borde inferior */
+        --dv-radius: 16px;
+    }
+    html {
+        font-size: 100%;
+        /* Samsung Internet y el navegador de Xiaomi "inflan" bloques de texto
+           por su cuenta; con esto el texto se queda del tamaño diseñado. */
+        -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+        /* Sin zoom por doble toque (que además retrasa el clic), pero SÍ se
+           puede pellizcar para ampliar. */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---- Estructura: sin barra lateral; barra inferior en su lugar ---- */
+    .dv-titlebar { display: none; }
+    .dv-sidebar { display: none !important; }
+    .dv-main {
+        margin-left: 0;
+        height: 100vh; height: 100dvh;   /* dvh = lo que de verdad se ve con la barra del navegador */
+        padding:
+            calc(var(--dv-m-gutter) * .85 + env(safe-area-inset-top, 0px))
+            calc(var(--dv-m-gutter) + env(safe-area-inset-right, 0px))
+            calc(var(--dv-m-bar-h) + var(--dv-m-bar-gap) + env(safe-area-inset-bottom, 0px) + 1.4rem)
+            calc(var(--dv-m-gutter) + env(safe-area-inset-left, 0px));
+    }
+    .dv-content { padding-top: 0; }
+
+    /* ---- Barra inferior ---- */
+    .dv-bottomnav {
+        display: flex; position: fixed; z-index: 15;
+        left: calc(var(--dv-m-gutter) + env(safe-area-inset-left, 0px));
+        right: calc(var(--dv-m-gutter) + env(safe-area-inset-right, 0px));
+        bottom: calc(var(--dv-m-bar-gap) + env(safe-area-inset-bottom, 0px));
+        height: var(--dv-m-bar-h); padding: 6px; gap: 2px; border-radius: 22px;
+        background: linear-gradient(180deg, rgba(19, 28, 43, .74) 0%, rgba(9, 15, 26, .84) 100%);
+        -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+        border: 1px solid rgba(255, 255, 255, .1);
+        box-shadow: 0 14px 34px rgba(0, 0, 0, .35), inset 0 1px 1px rgba(255, 255, 255, .08);
+        transition: transform .25s ease, opacity .2s ease;
+    }
+    .dv-bottomnav > a, .dv-bottomnav > button {
+        flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+        padding: 0 2px; border: 0; border-radius: 16px; background: none; color: #c6cfdd;
+        font: inherit; font-size: .72rem; font-weight: 600; line-height: 1.1; text-decoration: none;
+        transition: transform .3s var(--dv-spring), background .15s ease, color .15s ease;
+    }
+    .dv-bottomnav i { font-size: 1.4rem; line-height: 1; }
+    .dv-bottomnav span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dv-bottomnav .active {
+        color: #fff; background: linear-gradient(135deg, rgba(79, 124, 255, .92), rgba(111, 155, 255, .92));
+        box-shadow: 0 6px 16px rgba(79, 124, 255, .35);
+    }
+    .dv-bottomnav > a:active, .dv-bottomnav > button:active { transform: scale(.93); }
+    /* Con el teclado abierto la barra estorba (y en algunos navegadores se
+       "sube" encima del teclado): se esconde mientras se escribe. */
+    html.dv-kb .dv-bottomnav { transform: translateY(160%); opacity: 0; pointer-events: none; }
+    html.dv-kb .dv-main { padding-bottom: 1.5rem; }
+
+    /* Hoja "Más" (Bootstrap offcanvas desde abajo) */
+    .dv-mas-sheet {
+        display: flex; height: auto; max-height: 80dvh; border: 0;
+        border-radius: 24px 24px 0 0; color: #fff;
+        background: linear-gradient(180deg, rgba(27, 39, 57, .94) 0%, rgba(9, 15, 26, .97) 100%);
+        -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+        box-shadow: 0 -14px 40px rgba(0, 0, 0, .4);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .dv-mas-sheet .offcanvas-title { font-weight: 700; font-size: 1.1rem; }
+    .dv-mas-sheet .btn-close { filter: invert(1) grayscale(1) brightness(2); min-width: var(--dv-m-tap); min-height: var(--dv-m-tap); }
+    .dv-mas-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+    .dv-mas-grid a, .dv-mas-grid button {
+        display: flex; align-items: center; gap: .7rem; min-height: calc(var(--dv-m-tap) + 10px);
+        padding: .7rem .9rem; border-radius: 14px; border: 1px solid rgba(255, 255, 255, .1);
+        background: rgba(255, 255, 255, .06); color: #e6ebf3; font: inherit; font-size: .98rem; font-weight: 600;
+        text-decoration: none; text-align: left;
+    }
+    .dv-mas-grid i { font-size: 1.3rem; opacity: .9; }
+    .dv-mas-grid a.active { color: #fff; background: linear-gradient(135deg, rgba(79, 124, 255, .9), rgba(111, 155, 255, .9)); border-color: transparent; }
+    .dv-mas-grid a:active, .dv-mas-grid button:active { transform: scale(.97); }
+    .dv-mas-pie { margin-top: .9rem; font-size: .85rem; color: #aab4c6; display: flex; align-items: center; gap: .5rem; }
+
+    /* ---- Encabezado: título + campana + avatar en una fila, acciones debajo ---- */
+    .dv-topbar {
+        position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center; gap: .6rem; padding: .8rem .9rem; margin: 0 0 .85rem;
+        -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%);
+    }
+    .dv-topbar > .d-flex { display: contents !important; }
+    .dv-topbar-heading { grid-column: 1; grid-row: 1; min-width: 0; }
+    .dv-topbar .dv-bell-glass { grid-column: 2; grid-row: 1; }
+    .dv-topbar .dv-user { grid-column: 3; grid-row: 1; }
+    .dv-topbar .dv-title {
+        max-width: none; font-size: 1.3rem; line-height: 1.2;
+        white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    }
+    .dv-topbar .dv-subtitle {
+        font-size: .88rem; line-height: 1.3; margin-top: .15rem;
+        white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    }
+    .dv-avatar-glass, .dv-bell-glass { width: var(--dv-m-tap); height: var(--dv-m-tap); border-radius: 50%; }
+    #dv-topbar-actions { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; gap: .5rem; }
+    #dv-topbar-actions:empty { display: none; }
+    #dv-topbar-actions > .btn { flex: 1 1 auto; justify-content: center; }
+    #dv-topbar-actions > .card, #dv-topbar-actions > div { flex: 1 1 100%; }
+
+    /* ---- Tarjetas y espaciado ---- */
+    .card { -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%); }
+    .card.p-4 { padding: 1rem !important; }
+    .card.p-3 { padding: .85rem !important; }
+    /* Tarjetas de cifras del Inicio: una por renglón, ícono a la izquierda. Con dos
+       por fila el saldo ("$5,796,205.55", o más grande) no cabe en una línea en
+       ningún celular de menos de ~450px y se partía en dos. */
+    .dv-stat-row { --bs-gutter-x: .65rem; --bs-gutter-y: .65rem; }
+    .dv-stat-row > .col-6 { flex: 0 0 100%; width: 100%; }
+    .dv-stat-row .stat-card .d-flex { flex-direction: row; align-items: center; gap: .9rem; }
+    .dv-stat-row .stat-card .stat-icon { width: 46px; height: 46px; font-size: 1.2rem; }
+    .dv-stat-row .stat-card .stat-value { font-size: clamp(1.4rem, 6.6vw, 1.8rem); }
+    /* Las demás tarjetas de cifras (Clientes: dos por fila) conservan el ícono arriba. */
+    .stat-card .stat-value { font-size: clamp(1.25rem, 6vw, 1.6rem); }
+    .stat-card .text-muted { font-size: .88rem !important; }
+    #dv-topbar-actions .card .text-muted { font-size: .8rem !important; }
+    #dv-topbar-actions .card .fw-semibold { font-size: .98rem !important; }
+
+    /* ---- Lo que se toca: mínimo cómodo para el pulgar ---- */
+    .btn, .btn-sm { min-height: var(--dv-m-tap); display: inline-flex; align-items: center; justify-content: center; gap: .4rem; }
+    .btn-group > .btn, .btn-group-sm > .btn { min-height: var(--dv-m-tap); }
+    .form-control, .form-select, .form-control-sm, .form-select-sm { min-height: var(--dv-m-tap); font-size: 1rem; }
+    .form-check-input { width: 1.35em; height: 1.35em; }
+    .btn-close { min-width: var(--dv-m-tap); min-height: var(--dv-m-tap); background-size: .9em; }
+    .dv-pagination .page-link, .dv-por-pagina .page-link { height: var(--dv-m-tap); min-width: var(--dv-m-tap); }
+    .dv-pagination .pagination, .dv-por-pagina > div { justify-content: center; }
+    .badge { font-size: .78rem; padding: .4rem .7rem; }
+
+    /* ---- Formularios: un campo por renglón ----
+       Las vistas usan col-6 / col-4 sin punto de quiebre: a 360px quedaban campos de
+       ~150px ("Buscar financie", "Activ"). */
+    form .row > [class*="col-"] { flex: 0 0 100%; width: 100%; max-width: 100%; }
+
+    /* ---- Resumen de 3 cifras (ficha del cliente): un renglón por cifra ----
+       En 3 columnas, "$59,892.28" y "06/10/2026" se partían a media cifra. */
+    .dv-resumen-fila > [class*="col-"] {
+        flex: 0 0 100%; width: 100%; display: flex; align-items: center; justify-content: space-between;
+        gap: .75rem; text-align: left; padding: .55rem .25rem; border: 0 !important;
+    }
+    .dv-resumen-fila > [class*="col-"] + [class*="col-"] { border-top: 1px solid rgba(20, 30, 50, .12) !important; }
+    .dv-resumen-fila .fs-5 { font-size: 1.15rem !important; }
+
+    /* ---- Modales ---- */
+    .modal-dialog { margin: .75rem; }
+    .modal-footer > .btn { flex: 1 1 0; }
+
+    /* ---- Tablas → una tarjeta por fila (dv-mobile.js pone data-label y .dv-stack) ----
+       Una tabla de 8-10 columnas obliga a scrollear de lado y a leer los números
+       sin saber de qué columna son; así cada dato lleva su etiqueta. La matriz de
+       Liquidación (.dv-matrix-scroll) es ancha por naturaleza y sigue con scroll
+       horizontal, con la columna del cliente fija. */
+    .table-responsive.dv-stack-wrap { overflow: visible; padding: .6rem; }
+    table.dv-stack, table.dv-stack tbody { display: block; width: 100%; }
+    table.dv-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    table.dv-stack tbody > tr {
+        display: block; margin: 0 0 .65rem; padding: .7rem .85rem; border-radius: 14px;
+        background: rgba(255, 255, 255, .5); border: 1px solid rgba(255, 255, 255, .7);
+        box-shadow: 0 4px 12px rgba(30, 41, 59, .08);
+    }
+    table.dv-stack tbody > tr:last-child { margin-bottom: 0; }
+    table.dv-stack tbody > tr:hover { background: rgba(255, 255, 255, .6); }
+    table.dv-stack td {
+        display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+        padding: .3rem 0; border: 0; font-size: 1rem; text-align: right;
+        background-color: transparent; box-shadow: none;   /* Bootstrap pinta cada celda de blanco */
+    }
+    /* Valor de la celda (dv-mobile.js lo envuelve): así un monto y su nota
+       ("+$1,650.00 recargo") se quedan juntos en vez de irse a extremos opuestos. */
+    table.dv-stack td > .dv-stack-val { display: block; min-width: 0; text-align: right; overflow-wrap: anywhere; }
+    table.dv-stack td > .dv-stack-val > div, table.dv-stack td > .dv-stack-val > small { display: block; }
+    table.dv-stack td.d-none { display: flex !important; }       /* las columnas que en pantalla ancha se ocultaban, aquí sí caben */
+    table.dv-stack td:empty { display: none !important; }
+    table.dv-stack td::before {
+        content: attr(data-label); flex: 0 0 auto; max-width: 48%; text-align: left;
+        font-size: .76rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgba(0, 0, 0, .62);
+    }
+    table.dv-stack td[data-label=""]::before { content: none; }
+    table.dv-stack td.dv-stack-head {
+        display: block; text-align: left; font-weight: 700; font-size: 1.08rem; line-height: 1.3;
+        padding: 0 0 .5rem; margin-bottom: .3rem; border-bottom: 1px solid rgba(20, 30, 50, .12);
+    }
+    table.dv-stack td.dv-stack-head::before { content: none; }
+    table.dv-stack td.dv-stack-acciones {
+        justify-content: flex-start; flex-wrap: wrap; gap: .5rem; padding-top: .6rem; margin-top: .3rem;
+        border-top: 1px solid rgba(20, 30, 50, .12);
+    }
+    table.dv-stack td.dv-stack-acciones::before { content: none; }
+    /* Ver / Editar / Eliminar: tres botones del mismo ancho que reparten la fila
+       (unos son <a>, otros van dentro de un <form>). */
+    table.dv-stack td.dv-stack-acciones > * { margin: 0; flex: 1 1 0; min-width: 0; }
+    table.dv-stack td.dv-stack-acciones > form { display: flex; }
+    table.dv-stack td.dv-stack-acciones > form > .btn { flex: 1 1 auto; width: 100%; }
+    /* Tablas chicas (pagos dentro de una ficha): tarjetas más compactas */
+    table.dv-stack.table-sm tbody > tr { padding: .55rem .75rem; margin-bottom: .5rem; }
+    table.dv-stack.table-sm td { font-size: .97rem; padding: .22rem 0; }
+    table.dv-stack tbody > tr.dv-stack-vacia { background: none; border: 0; box-shadow: none; padding: .25rem 0; }
+    table.dv-stack tbody > tr.dv-stack-vacia > td { display: block !important; text-align: center; padding: 1.5rem .5rem; }
+    table.dv-stack tbody > tr.table-light { background: rgba(79, 124, 255, .1); }
+    .dv-nombre-cliente { -webkit-line-clamp: 3; }
+    .dv-col-cliente { min-width: 0; }
+    .dv-matrix-scroll .dv-matrix-pin { min-width: 128px; }
+    .dv-matrix-scroll .table th, .dv-matrix-scroll .table td { padding: .6rem .7rem; }
+
+    /* ---- Gráficas ---- */
+    .dv-avance-donut-wrap { max-width: 190px; }
+}
+
+/* =====================================================================
+   Las cuatro categorías: solo cambian los tokens de arriba
+   ===================================================================== */
+
+/* Compacto — hasta 374px */
+@media (max-width: 374.98px) {
+    :root { --dv-m-gutter: .7rem; --dv-m-bar-h: 60px; }
+    .dv-topbar { padding: .7rem .75rem; }
+    .dv-topbar .dv-title { font-size: 1.2rem; }
+    .dv-bottomnav { padding: 5px; }
+    .dv-bottomnav > a, .dv-bottomnav > button { font-size: .7rem; }
+    .dv-mas-grid { grid-template-columns: 1fr; }
+    table.dv-stack tbody > tr { padding: .65rem .75rem; }
+}
+
+/* Estándar — 375 a 399px (los tokens base ya son los de esta categoría) */
+
+/* Grande — 400 a 429px (Pixel 9/10, Galaxy S25/S26 Ultra, Redmi Turbo 4 Pro) */
+@media (min-width: 400px) and (max-width: 599.98px) {
+    html { font-size: 103%; }
+    :root { --dv-m-gutter: 1rem; --dv-m-tap: 46px; --dv-m-bar-h: 64px; }
+}
+
+/* Extra grande — 430 a 599px (Plus/Pro Max, POCO F7 Pro, plegables abiertos) */
+@media (min-width: 430px) and (max-width: 599.98px) {
+    html { font-size: 106%; }
+    :root { --dv-m-gutter: 1.15rem; --dv-m-tap: 48px; --dv-m-bar-h: 68px; }
+    .dv-bottomnav > a, .dv-bottomnav > button { font-size: .76rem; }
+    .dv-topbar .dv-title { font-size: 1.4rem; }
+}

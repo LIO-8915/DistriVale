@@ -206,6 +206,39 @@ Middleware: `ControlAcceso` (global, grupo web) deja pasar a la PC; a un remoto 
 
 **Pendiente.** Pasada de UI/táctil para el viewport del iPad (con el iPad real); validar el botón de firewall (UAC) y el parpadeo/sonido en una instalación real; probar con otros antivirus (McAfee/Defender).
 
+## 6.4. Interfaz en celulares (< 600px) y "jalar para actualizar"
+
+**Archivos:** `public/css/dv-mobile.css`, `public/js/dv-mobile.js` (ambos con `?v=filemtime` en el layout), la barra inferior + hoja "Más" en `layouts/app.blade.php`, y `DvNav.refresh()` en `dv-nav.js`. De 600px hacia arriba (iPad, PC) la app se ve **igual que antes** — verificado comparando píxel a píxel contra el commit anterior.
+
+**Cuatro categorías** por ancho CSS en vertical (lo que reporta el navegador, no los píxeles físicos). `dv-mobile.js` pone `data-pantalla` en `<html>`:
+
+| Categoría | Ancho CSS | Referencias | Margen | Toque mín. | Barra inf. | Texto |
+|---|---|---|---|---|---|---|
+| Compacto | ≤ 374 | Galaxy S25/S26 base 360, serie A, Redmi Note 360, plegables cerrados 344 | .7rem | 44px | 60px | 100% |
+| Estándar | 375–399 | iPhone SE 375, iPhone 15/16 393 | .85rem | 44px | 62px | 100% |
+| Grande | 400–429 | iPhone 16 Pro/17 402, Pixel 9/10 412, Galaxy S25/S26 Ultra 412, Redmi Turbo 4 Pro / POCO F7 ≈427 | 1rem | 46px | 64px | 103% |
+| Extra grande | 430–599 | iPhone Plus/Pro Max 430–440, POCO F7 Pro 480 | 1.15rem | 48px | 68px | 106% |
+
+La escala de texto va en **porcentaje** (no en px) para respetar el tamaño de fuente que la persona fijó en el teléfono. Los cortes de la tabla deben coincidir en el CSS y en `categoria()` del JS.
+
+**Qué cambia en celular:**
+- La sidebar se oculta; barra inferior flotante con Inicio · Clientes · Vales · Cobranza · **Más** (hoja inferior con Financieras, Liquidación, Respaldo y —solo en la PC— Acceso remoto; en remoto, "Desconectar"). `dv-nav.js` sincroniza el elemento activo y la hoja se cierra al navegar. Con el teclado abierto la barra se esconde (`html.dv-kb`).
+- Encabezado: título + campana + avatar en una fila y los botones de acción debajo, a todo el ancho; ya no es `sticky`.
+- **Las tablas se convierten en tarjetas** (una por fila): `dv-mobile.js` copia el texto de cada `<th>` a un `data-label` en cada `<td>`. **Toda tabla nueva debe tener `<thead>` con encabezados** o saldrá sin etiquetas. La primera columna es el título de la tarjeta si su encabezado dice Cliente/Nombre/Vale/Financiera; la última (Acciones o sin título) son los botones. La matriz de Liquidación (`.dv-matrix-scroll`) sigue con scroll lateral. Solo se etiqueta con ancho de celular: en PC/iPad el DOM de las tablas no se toca.
+- Formularios: una columna (`form .row > [class*="col-"]`), porque las vistas usan `col-6`/`col-4` sin punto de quiebre y a 360px quedaban campos de ~150px.
+- Inicio: las 4 cifras en renglones, una por línea (el saldo, p. ej. `$5,796,205.55`, no cabe en media tarjeta en ningún celular < 450px).
+- Meta viewport **sin `user-scalable=no`** (se puede pellizcar para ampliar) y con `viewport-fit=cover`; `theme-color`; `text-size-adjust: 100%` (Samsung Internet y el navegador de Xiaomi inflan el texto si no).
+
+**Jalar para actualizar** (también en iPad; solo si hay pantalla táctil): `.dv-main` es el contenedor que scrollea (el `<body>` no), así que el navegador no lo ofrece solo; `overscroll-behavior-y: contain` evita además el de Chrome/Samsung. Reglas del gesto: solo si el scroll está arriba del todo, un solo dedo, dirección vertical hacia abajo (si es de lado, como en una tabla ancha, se ignora), no sobre modales/hojas/campos (`data-no-ptr` para excluir otros), no mientras ya actualiza; umbral ≈ 7.5% del alto de pantalla (56–72px) con resistencia 0.55; vibra al cruzar el umbral y al terminar (donde el navegador lo permita; iOS no). Refresca con `DvNav.refresh()` (misma ruta que un clic en un enlace, sin recarga completa; devuelve una promesa). **Si hay un formulario con cambios sin guardar** (`form[data-dv-sucio]`, marcado al escribir en formularios no-GET) **no refresca** y avisa.
+
+**Aviso "Sin conexión con la computadora"** (`public/js/dv-conexion.js` + `public/dv-ping.txt`; solo en dispositivos remotos: `<body data-remoto="1">`, en la PC no hace nada). Un latido cada 10s a `dv-ping.txt` —un archivo estático que sirve el propio Caddy, así que si la PC cierra DistriVale deja de responder— con timeout de 4s; tras un latido perdido se confirma a los 2s y con dos seguidos se muestra el banner (~13s en el peor caso; el evento `offline` del sistema y los fallos de red de `dv-nav.js` lo muestran al instante). Mientras está caído: tocar una pestaña **no** manda a la página de error del navegador (se queda en la pantalla actual), **enviar un formulario se detiene y conserva lo escrito** (se vuelve a comprobar en ese momento por si la red ya regresó) y jalar para actualizar avisa en vez de decir "Actualizado". Al volver la conexión: banner verde y refresco silencioso (salvo formulario con cambios sin guardar). `DvNav.refresh()` devuelve `true`/`false`; los errores de red se marcan con `err.dvRed` para no confundirlos con un fallo al armar la pantalla (que sigue cayendo a la navegación completa). Límite: `dv-confirm.js` reenvía con `form.submit()` (no dispara el evento `submit`), así que si la red cae justo *entre* abrir el modal de confirmación y aceptarlo, ese envío no pasa por la protección (el primer `submit`, antes del modal, sí queda detenido cuando ya se sabe que no hay conexión).
+
+**Pairing (`remoto/acceso`)**: el campo del código de 6 dígitos se recortaba a ≤ 360px; ahora el tamaño y el espaciado escalan con el ancho (`clamp`).
+
+**Cómo se probó** (sin teléfono): Edge headless con `puppeteer-core` emulando viewport móvil + táctil (`isMobile`, `hasTouch`) y toques reales (`page.touchscreen`). No usar `php artisan serve` para eso: el bloqueo de `php -S` (§6.1) deja la página en la pantalla de bienvenida durante segundos; levantar Caddy + `php-cgi` como la app. Comparación de PC/iPad contra el commit anterior con `git worktree` + `pixelmatch`.
+
+**No cubierto / limitaciones conocidas:** la barra de direcciones del navegador móvil **no se esconde** al hacer scroll porque scrollea `.dv-main` y no el documento (a cambio se conserva el diseño actual); pasar a scroll del documento en celular lo arreglaría pero toca `dv-motion`, el fondo `fixed` y el `sticky`. Tampoco hay manifest/PWA (por HTTP plano Android no ofrece "instalar"; iOS sí respeta el modo pantalla completa al "Añadir a inicio").
+
 ## 7. Respaldo de la base de datos a Google Drive
 
 `DistriValeWeb` tiene una pantalla ("Respaldo" en el sidebar) para subir/bajar manualmente `database.sqlite` a Google Drive — ver `app/Services/GoogleDriveService.php` y `app/Http/Controllers/GoogleDriveController.php`. No es sincronización en tiempo real: es "guardar en la nube" / "traer de la nube" a demanda, con un solo nivel de deshacer para la restauración.

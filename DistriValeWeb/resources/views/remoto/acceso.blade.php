@@ -36,10 +36,15 @@
         }
         .form-control:focus { background: rgba(255, 255, 255, .14); color: #fff; border-color: var(--dv-accent); box-shadow: 0 0 0 .25rem rgba(79, 124, 255, .25); }
         .form-control::placeholder { color: rgba(238, 241, 248, .4); }
+        /* Seis dígitos grandes con mucho espacio entre ellos solo caben desde ~400px
+           de ancho: en un celular compacto (Galaxy S25 de 360px, plegables cerrados)
+           el último dígito quedaba recortado. Debajo de 400px el tamaño y el
+           espaciado se achican en proporción al ancho de la pantalla. */
         .dv-codigo {
-            text-align: center; font-size: 2.2rem; font-weight: 800; letter-spacing: .5em; padding-left: .5em;
+            text-align: center; font-size: clamp(1.7rem, 9vw, 2.2rem); font-weight: 800; letter-spacing: .3em; padding-left: .3em; padding-right: .5rem;
             font-variant-numeric: tabular-nums; min-height: 70px;
         }
+        @media (min-width: 400px) { .dv-codigo { letter-spacing: .5em; padding-left: .5em; padding-right: 1rem; } }
         .btn { border-radius: 14px; min-height: 52px; font-weight: 700; font-size: 1.02rem; border: 0; }
         .btn-dv { background: linear-gradient(135deg, var(--dv-accent), #6f9bff); color: #fff; box-shadow: 0 10px 24px rgba(79, 124, 255, .35); }
         .btn-dv:active { transform: scale(.97, .94); }
