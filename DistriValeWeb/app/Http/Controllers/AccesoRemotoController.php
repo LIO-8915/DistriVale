@@ -29,10 +29,19 @@ class AccesoRemotoController extends Controller
         return response()->json($this->datos());
     }
 
-    /** Lo sondea el modal global (todas las pantallas) mientras el acceso remoto está encendido. */
+    /**
+     * Lo sondea el modal global (todas las pantallas de la PC). Devuelve también
+     * `activo` para que la ventana se entere sola de que el acceso remoto se
+     * encendió después de cargarse (no depende de cómo se haya encendido).
+     */
     public function pendientes(): JsonResponse
     {
-        return response()->json(['pendientes' => AccesoRemoto::activo() ? $this->pendientesVigentes() : []]);
+        $activo = AccesoRemoto::activo();
+
+        return response()->json([
+            'activo' => $activo,
+            'pendientes' => $activo ? $this->pendientesVigentes() : [],
+        ]);
     }
 
     public function activar(): JsonResponse

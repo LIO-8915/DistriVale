@@ -20,6 +20,11 @@
     var modal = new bootstrap.Modal(modalEl);
     var vistos = {};
     var timer = null;
+    var intervalo = 0;
+    // Rápido mientras el acceso remoto está encendido (o hay solicitudes); lento
+    // mientras está apagado, solo para enterarse si se enciende sin recargar la
+    // ventana (p. ej. si no se encendió desde el interruptor de esta pantalla).
+    var RAPIDO_MS = 2000, LENTO_MS = 5000;
 
     function el(tag, clase, texto) {
         var e = document.createElement(tag);
@@ -64,6 +69,7 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 var items = d.pendientes || [];
+                programar(d.activo === false && !items.length ? LENTO_MS : RAPIDO_MS);
                 render(items);
                 var hayNuevo = items.some(function (p) { return !vistos[p.id + ':' + p.codigo]; });
                 items.forEach(function (p) { vistos[p.id + ':' + p.codigo] = true; });
@@ -73,12 +79,22 @@
             .catch(function () {});
     }
 
+    function programar(ms) {
+        if (timer && intervalo === ms) return;
+        clearInterval(timer);
+        intervalo = ms;
+        timer = setInterval(tick, ms);
+    }
+
+    // `iniciar()` (lo llama el interruptor de la pantalla "Acceso remoto") pasa a
+    // modo rápido y consulta de inmediato.
     function iniciar() {
-        if (timer) return;
+        programar(RAPIDO_MS);
         tick();
-        timer = setInterval(tick, 2000);
     }
 
     window.DvRemoto = { iniciar: iniciar };
+    // Siempre vigila: si ya estaba encendido, rápido; si no, lento.
     if (modalEl.dataset.activo === '1') iniciar();
+    else { programar(LENTO_MS); tick(); }
 })();

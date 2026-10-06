@@ -1137,7 +1137,7 @@
 
     @unless ($esRemoto)
         @include('partials.remoto-solicitudes')
-        <script src="{{ asset('js/dv-remoto.js') }}"></script>
+        <script src="{{ asset('js/dv-remoto.js') }}?v={{ filemtime(public_path('js/dv-remoto.js')) }}"></script>
     @endunless
 
     <script src="{{ asset('js/dv-motion.js') }}"></script>

@@ -319,6 +319,27 @@ class AccesoRemotoTest extends TestCase
             ->assertJsonPath('pendientes.0.nombre', 'iPad de Ana');
     }
 
+    public function test_la_pc_se_entera_de_que_el_acceso_se_encendio_sin_recargar_la_ventana(): void
+    {
+        // La ventana de la PC sondea /pendientes: debe saber si está activo para pasar de modo lento a rápido.
+        $this->estadoRust(false);
+        $this->pc()->getJson(route('acceso-remoto.pendientes'))->assertOk()
+            ->assertJsonPath('activo', false)->assertJsonPath('pendientes', []);
+
+        $this->estadoRust(true);
+        $d = $this->pedirCodigo();
+        $this->pc()->getJson(route('acceso-remoto.pendientes'))->assertOk()
+            ->assertJsonPath('activo', true)
+            ->assertJsonPath('pendientes.0.codigo', $d->codigo);
+    }
+
+    public function test_el_modal_de_codigos_se_carga_con_version_para_que_no_quede_una_copia_vieja_en_cache(): void
+    {
+        $this->pc()->get('/')->assertOk()
+            ->assertSee('js/dv-remoto.js?v=', false)
+            ->assertSee('id="modalSolicitudRemota"', false);
+    }
+
     public function test_desde_un_dispositivo_remoto_solo_se_puede_respaldar_a_drive(): void
     {
         $token = $this->emparejar();
