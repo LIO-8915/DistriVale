@@ -10,7 +10,7 @@
     @else
         <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Editar</a>
     @endif
-    <a href="{{ route('vales.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <a href="{{ route('vales.index') }}" class="btn btn-sm btn-outline-secondary" aria-label="Volver a los créditos" title="Volver a los créditos"><i class="bi bi-arrow-left"></i></a>
 @endsection
 
 @section('content')

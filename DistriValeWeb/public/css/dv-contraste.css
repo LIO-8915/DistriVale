@@ -1,0 +1,120 @@
+/* =====================================================================
+   DistriVale — TEMA CONTRASTADO (opcional)
+
+   Se activa desde "Mi perfil" (interruptor "Tema contrastado"): el layout pone la clase
+   `dv-contraste` en <html>. SIN esa clase nada de este archivo aplica y la app se ve con el
+   diseño de cristal original: es el estado por defecto (el usuario prefiere ese aspecto).
+
+   Se carga DESPUÉS del <style> del layout y de dv-mobile.css; cada regla sustituye un color
+   concreto que MIDIÓ por debajo de 4.5:1 (3:1 en texto grande). La medición se hizo con
+   píxeles renderizados (color del texto contra lo que de verdad hay detrás) en 12 pantallas,
+   en PC y a 427px: sin el tema 7.2 % (PC) y 10.4 % (celular) de los textos no pasan; con el
+   tema 0.3 % y 0.5 %.
+
+   El estilo "liquid glass" se conserva (cristal, desenfoque, brillo, bordes): lo que cambia es
+   (1) la opacidad mínima del cristal, para que el texto negro no quede sobre las zonas más
+   oscuras de la foto de fondo, y (2) los tonos de azul/verde/naranja/rojo que llevan texto.
+   Cada valor está calculado: ver ARQUITECTURA_TAURI.md §6.4.
+   ===================================================================== */
+
+html.dv-contraste {
+    /* Azul de marca un punto más profundo: texto blanco encima = 5.9:1 (antes 3.7:1) */
+    --dv-accent: #2c53d0;
+    --dv-accent-soft: rgba(44, 83, 208, .16);
+    --dv-btn-from: #2c53d0;
+    --dv-btn-to: #3963de;
+    /* Enlaces: 6:1 sobre celeste claro (antes 2.8–3.3:1) */
+    --dv-link-rgb: 26, 70, 176;
+    --bs-link-color: #1a46b0;
+    --bs-link-color-rgb: var(--dv-link-rgb);
+    --bs-link-hover-color: #123a96;
+    --bs-link-hover-color-rgb: 18, 58, 150;
+}
+
+/* ---------- Cristal: opacidad mínima ----------
+   Texto negro sobre blanco al 22 % encima de la zona más oscura de la foto = 2.0:1.
+   Al 50 % = 5.7:1. Se sube el piso de los tres cortes del degradado. */
+html.dv-contraste .card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .74) 0%, rgba(255, 255, 255, .52) 55%, rgba(255, 255, 255, .64) 100%);
+}
+html.dv-contraste .dv-topbar {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .56) 55%, rgba(255, 255, 255, .68) 100%);
+}
+html.dv-contraste .btn-outline-secondary, html.dv-contraste .btn-outline-danger, html.dv-contraste .btn-outline-warning,
+html.dv-contraste .btn-outline-secondary:hover, html.dv-contraste .btn-outline-danger:hover, html.dv-contraste .btn-outline-warning:hover,
+html.dv-contraste .btn-outline-secondary:focus, html.dv-contraste .btn-outline-danger:focus, html.dv-contraste .btn-outline-warning:focus {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .54) 55%, rgba(255, 255, 255, .66) 100%);
+}
+html.dv-contraste .dv-bell-glass { background: linear-gradient(135deg, rgba(255, 255, 255, .78) 0%, rgba(255, 255, 255, .54) 55%, rgba(255, 255, 255, .66) 100%); }
+
+/* ---------- Botones con relleno azul y texto blanco ---------- */
+html.dv-contraste .btn-primary { background: linear-gradient(135deg, var(--dv-btn-from), var(--dv-btn-to)); }
+html.dv-contraste .dv-chips .dv-chip.active { background: linear-gradient(135deg, var(--dv-btn-from), var(--dv-btn-to)); }
+html.dv-contraste .dv-sidebar a.active { background: linear-gradient(135deg, rgba(44, 83, 208, .97), rgba(57, 99, 222, .97)); }
+html.dv-contraste .dv-bottomnav .active { background: linear-gradient(135deg, rgba(44, 83, 208, .97), rgba(57, 99, 222, .97)); }
+html.dv-contraste .dv-mas-grid a.active { background: linear-gradient(135deg, rgba(44, 83, 208, .97), rgba(57, 99, 222, .97)); }
+
+/* Botones de contorno azul ("Descargar PDF", "PDF de relación…") */
+html.dv-contraste .btn-outline-primary {
+    --bs-btn-color: #1a46b0; --bs-btn-border-color: #2c53d0;
+    --bs-btn-active-bg: #2748b8; --bs-btn-active-border-color: #2748b8;
+    color: #1a46b0; border-color: #2c53d0;
+}
+/* El relleno al pasar el cursor solo donde hay cursor (en táctil quedaba pegado tras tocar) */
+@media (hover: hover) {
+    html.dv-contraste .btn-outline-primary { --bs-btn-hover-bg: #2c53d0; --bs-btn-hover-border-color: #2c53d0; --bs-btn-hover-color: #fff; }
+}
+
+/* ---------- Avatar y accesos rápidos: texto blanco sobre color ----------
+   Eran tonos pastel translúcidos (blanco encima = 1.5–3.7:1). Ahora 4.6–5.9:1. */
+html.dv-contraste .glass-fill-blue   { background: linear-gradient(135deg, rgba(44, 83, 208, .97), rgba(57, 99, 222, .97)); }
+html.dv-contraste .glass-fill-purple { background: linear-gradient(135deg, rgba(100, 68, 216, .97), rgba(112, 80, 226, .97)); }
+html.dv-contraste .glass-fill-orange { background: linear-gradient(135deg, rgba(168, 82, 0, .97), rgba(173, 85, 0, .97)); }
+html.dv-contraste .glass-fill-green  { background: linear-gradient(135deg, rgba(13, 112, 80, .97), rgba(16, 117, 85, .97)); }
+html.dv-contraste .glass-quick-btn.glass-fill-blue   { background: linear-gradient(135deg, rgba(44, 83, 208, .97), rgba(57, 99, 222, .97)); }
+html.dv-contraste .glass-quick-btn.glass-fill-purple { background: linear-gradient(135deg, rgba(100, 68, 216, .97), rgba(112, 80, 226, .97)); }
+html.dv-contraste .glass-quick-btn.glass-fill-orange { background: linear-gradient(135deg, rgba(168, 82, 0, .97), rgba(173, 85, 0, .97)); }
+html.dv-contraste .glass-quick-btn.glass-fill-green  { background: linear-gradient(135deg, rgba(13, 112, 80, .97), rgba(16, 117, 85, .97)); }
+
+/* ---------- Insignias de estado ----------
+   Texto de 11–13px: necesita 4.5:1. Fondo casi blanco con un tinte del color (antes el tinte
+   era translúcido sobre el cristal y el contraste caía a ~2:1). */
+html.dv-contraste .badge.bg-success, html.dv-contraste .badge-estado-ACTIVO {
+    color: #0b6341;
+    background: linear-gradient(rgba(43, 196, 138, .14), rgba(43, 196, 138, .14)), rgba(255, 255, 255, .88) !important;
+}
+html.dv-contraste .badge-estado-EN_MORA {
+    color: #8a4a00;
+    background: linear-gradient(rgba(255, 159, 67, .16), rgba(255, 159, 67, .16)), rgba(255, 255, 255, .88) !important;
+}
+html.dv-contraste .badge.bg-secondary, html.dv-contraste .badge-estado-LIQUIDADO {
+    color: #4b5563;
+    background: linear-gradient(rgba(120, 130, 145, .14), rgba(120, 130, 145, .14)), rgba(255, 255, 255, .88) !important;
+}
+html.dv-contraste .badge.bg-danger {
+    color: #a3162c;
+    background: linear-gradient(rgba(255, 92, 114, .14), rgba(255, 92, 114, .14)), rgba(255, 255, 255, .88) !important;
+}
+
+/* ---------- Colores de texto ---------- */
+html.dv-contraste .text-danger { color: #9b1c2c !important; }
+html.dv-contraste .text-success { color: #0f6b3f !important; }
+html.dv-contraste .text-warning { color: #8a5a00 !important; }
+html.dv-contraste .dv-bell-glass .dv-bell-inner { color: #1f2a40; }
+html.dv-contraste code { color: #a1155f; }
+
+/* Contorno naranja ("Aplicar pago otra vez"): #c97316 sobre blanco era 3.4:1 → #8a4a00 = 6.1:1 */
+html.dv-contraste .btn-outline-warning,
+html.dv-contraste .btn-outline-warning:hover,
+html.dv-contraste .btn-outline-warning:focus { color: #8a4a00; }
+
+/* Recuadros de ícono / iniciales con texto o glifo blanco (stat cards, avatar de la ficha) */
+html.dv-contraste .icon-blue   { background: linear-gradient(135deg, #2c53d0, #3963de); }
+html.dv-contraste .icon-purple { background: linear-gradient(135deg, #6444d8, #7050e2); }
+html.dv-contraste .icon-orange { background: linear-gradient(135deg, #a85200, #ad5500); }
+html.dv-contraste .icon-green  { background: linear-gradient(135deg, #0d7050, #107555); }
+
+/* Enlaces: en táctil el color de "hover" se quedaba pegado tras tocar; se iguala al normal. */
+@media (hover: none) {
+    html.dv-contraste a:hover { --bs-link-color-rgb: var(--dv-link-rgb); }
+}

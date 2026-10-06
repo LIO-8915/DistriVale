@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es"@if ($perfilUsuario->alto_contraste) class="dv-contraste"@endif>
 <head>
     <meta charset="UTF-8">
     {{-- Sin user-scalable=no: en celular hay que poder pellizcar para ampliar (accesibilidad).
@@ -154,7 +154,9 @@
            .stat-card: elevar tarjetas con tablas o formularios estorbaría y
            el transform crearía un contexto de apilamiento sobre sus dropdowns. */
         .stat-card { transition: transform .25s var(--dv-spring), box-shadow .25s ease; }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(30, 41, 59, .18); }
+        /* Los efectos de "hover" van solo donde existe un puntero que pueda posarse: en táctil el
+           hover se queda PEGADO tras tocar (tarjeta levantada, fila resaltada…). */
+        @media (hover: hover) { .stat-card:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(30, 41, 59, .18); } }
         @media (prefers-reduced-motion: reduce) {
             .dv-nav-indicator { transition: none; }
             .stat-card, .stat-card:hover { transform: none; transition: none; }
@@ -254,7 +256,7 @@
                         transform .32s var(--dv-spring), border-radius .32s var(--dv-spring), filter .15s ease;
         }
         .dv-sidebar a i { font-size: 1.15rem; width: 20px; text-align: center; opacity: .85; }
-        .dv-sidebar a:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+        @media (hover: hover) { .dv-sidebar a:hover { background: rgba(255, 255, 255, .06); color: #fff; } }
         /* Liquid Glass press feedback: the pill compresses and rounds off
            further while held, its blur/darken deepen a touch (keeps the icon
            legible against whatever's behind it), then springs back via the
@@ -374,7 +376,8 @@
                         -webkit-backdrop-filter .2s ease, backdrop-filter .2s ease;
         }
         .glass-quick-btn i { font-size: 1.3rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
-        .glass-quick-btn:hover { color: #fff; filter: brightness(1.06); }
+        .glass-quick-btn:hover { color: #fff; }
+        @media (hover: hover) { .glass-quick-btn:hover { filter: brightness(1.06); } }
         .glass-quick-btn:active {
             transform: scale(.96); border-radius: 1.05rem; filter: brightness(.9);
             -webkit-backdrop-filter: blur(24px) saturate(230%); backdrop-filter: blur(24px) saturate(230%);
@@ -396,7 +399,7 @@
             border: 2px solid transparent; box-shadow: inset 0 1px 1px rgba(255, 255, 255, .5);
             transition: transform .15s ease, border-color .15s ease;
         }
-        .dv-color-swatch:hover { transform: scale(1.06); }
+        @media (hover: hover) { .dv-color-swatch:hover { transform: scale(1.06); } }
         .dv-color-swatch:has(input:checked) {
             border-color: #33415a; box-shadow: 0 0 0 3px rgba(51, 65, 90, .15), inset 0 1px 1px rgba(255, 255, 255, .5);
         }
@@ -436,12 +439,13 @@
             box-shadow: 0 8px 20px rgba(30, 41, 59, .14), inset 0 1px 1px rgba(255, 255, 255, .5);
         }
         .btn-outline-secondary, .btn-outline-secondary:hover, .btn-outline-secondary:focus { color: #1c2733; }
-        .btn-outline-danger:hover, .btn-outline-danger:focus { color: #dc3545; filter: brightness(1.05); }
+        .btn-outline-danger:hover, .btn-outline-danger:focus { color: #dc3545; }
+        @media (hover: hover) { .btn-outline-danger:hover, .btn-outline-danger:focus { filter: brightness(1.05); } }
         /* Bootstrap's default warning yellow (#ffc107) reads poorly on a
            light glass background — usa el mismo naranja que ya identifica
            "en mora"/advertencia en el resto de la app. */
         .btn-outline-warning, .btn-outline-warning:hover, .btn-outline-warning:focus { color: #c97316; }
-        .btn-outline-warning:hover, .btn-outline-warning:focus { filter: brightness(1.05); }
+        @media (hover: hover) { .btn-outline-warning:hover, .btn-outline-warning:focus { filter: brightness(1.05); } }
 
         /* Modal de confirmación (reemplaza confirm() nativo): mismo cristal
            que .card, un poco más opaco porque se lee encima de contenido
@@ -566,7 +570,7 @@
            correspondiente — este hover es lo único que avisa que se puede
            hacer clic, ya que se ve igual que antes de tocarlo. */
         .dv-vencimiento-item { border-radius: 10px; padding-left: .5rem; padding-right: .5rem; margin: 0 -.5rem; transition: background .15s ease; }
-        .dv-vencimiento-item:hover { background: rgba(79, 124, 255, .08); }
+        @media (hover: hover) { .dv-vencimiento-item:hover { background: rgba(79, 124, 255, .08); } }
         .dv-activity-amount {
             padding: .3rem .75rem; border-radius: 999px; font-weight: 700; font-size: .92rem;
             background: rgba(255, 255, 255, .5);
@@ -622,7 +626,7 @@
             vertical-align: middle; border-bottom: 1px solid rgba(20, 30, 50, .1);
             font-size: 1rem; color: #000; padding: 1rem 1.15rem;
         }
-        .table tbody tr:hover { background: rgba(79, 124, 255, .07); }
+        @media (hover: hover) { .table tbody tr:hover { background: rgba(79, 124, 255, .07); } }
 
         /* Wide pivot tables (e.g. liquidación's cliente × financiera matrix)
            scroll horizontally on narrow windows via .table-responsive; pin
@@ -726,7 +730,8 @@
         }
         .dv-searchselect-menu.show { display: block; }
         .dv-searchselect-option { padding: .5rem .65rem; border-radius: 8px; font-size: .92rem; cursor: pointer; }
-        .dv-searchselect-option:hover, .dv-searchselect-option.active { background: rgba(79, 124, 255, .14); }
+        .dv-searchselect-option.active { background: rgba(79, 124, 255, .14); }
+        @media (hover: hover) { .dv-searchselect-option:hover { background: rgba(79, 124, 255, .14); } }
         .dv-searchselect-empty { padding: .5rem .65rem; font-size: .85rem; color: #667085; }
 
         /* Liquid Glass press feedback keeps its darken/blur cues either way
@@ -766,7 +771,7 @@
             display: inline-flex; align-items: center; justify-content: center;
             height: 2.4rem; min-width: 2.4rem; padding: 0 .5rem;
         }
-        .dv-pagination .page-link:hover, .dv-por-pagina .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; }
+        @media (hover: hover) { .dv-pagination .page-link:hover, .dv-por-pagina .page-link:hover { background: rgba(255, 255, 255, .85); color: #000; } }
         .dv-pagination .page-item.active .page-link, .dv-por-pagina .page-link.active {
             background: var(--dv-accent); border-color: var(--dv-accent); color: #fff;
         }
@@ -855,6 +860,8 @@
     </style>
     {{-- Celulares: después del <style> de arriba a propósito (a igual especificidad gana lo último). --}}
     <link rel="stylesheet" href="{{ asset('css/dv-mobile.css') }}?v={{ filemtime(public_path('css/dv-mobile.css')) }}">
+    {{-- Contraste WCAG AA: sustituye los colores que midieron mal; va al final a propósito. --}}
+    <link rel="stylesheet" href="{{ asset('css/dv-contraste.css') }}?v={{ filemtime(public_path('css/dv-contraste.css')) }}">
 </head>
 <body data-remoto="{{ $esRemoto ? '1' : '0' }}">
     <div id="dv-progress"></div>
@@ -960,7 +967,7 @@
             </div>
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div id="dv-topbar-actions">@yield('actions')</div>
-                <button type="button" class="dv-glass-chip dv-bell-glass" data-bs-toggle="modal" data-bs-target="#modalVencimientos">
+                <button type="button" class="dv-glass-chip dv-bell-glass" data-bs-toggle="modal" data-bs-target="#modalVencimientos" aria-label="Pagos vencidos" title="Pagos vencidos">
                     <span class="dv-bell-inner{{ $vencimientos->count() > 0 ? ' has-alerts' : '' }}"><i class="bi bi-bell"></i></span>
                 </button>
                 <div class="dv-user">
@@ -981,7 +988,7 @@
             @if (session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
                     {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" aria-label="Cerrar" data-bs-dismiss="alert"></button>
                 </div>
             @endif
 
@@ -992,7 +999,7 @@
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <button type="button" class="btn-close" aria-label="Cerrar" data-bs-dismiss="alert"></button>
                 </div>
             @endif
 
@@ -1011,7 +1018,7 @@
                         <span class="dv-activity-icon me-2"><img src="{{ asset('images/icono-vale-atrasado.webp') }}" alt=""></span>
                         Pagos vencidos
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" aria-label="Cerrar" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     @forelse ($vencimientos as $v)
@@ -1044,7 +1051,7 @@
                     @method('PUT')
                     <div class="modal-header">
                         <h5 class="modal-title">Mi perfil</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <button type="button" class="btn-close" aria-label="Cerrar" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
@@ -1065,6 +1072,17 @@
                                     </label>
                                 @endforeach
                             </div>
+                        </div>
+                        {{-- Tema contrastado: opcional y APAGADO por defecto (diseño de cristal original).
+                             Al moverlo se ve de inmediato; si se cancela el modal, vuelve a como estaba. --}}
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="alto_contraste" value="0">
+                                <input class="form-check-input" type="checkbox" role="switch" name="alto_contraste" value="1" id="perfilAltoContraste"
+                                       {{ old('alto_contraste', $perfilUsuario->alto_contraste) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="perfilAltoContraste">Tema contrastado</label>
+                            </div>
+                            <div class="form-text">Texto más oscuro y colores más profundos para leer mejor, sin quitar el diseño de cristal. Aplica en la PC, el iPad y el celular.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1128,6 +1146,25 @@
     <script src="{{ asset('js/dv-ui.js') }}"></script>
     <script src="{{ asset('js/dv-searchselect.js') }}"></script>
     <script src="{{ asset('js/dv-confirm.js') }}"></script>
+    <script>
+        // "Tema contrastado" del perfil: vista previa al mover el interruptor; si el modal se
+        // cierra sin guardar, se restaura el estado que tenía la pantalla.
+        (function () {
+            var interruptor = document.getElementById('perfilAltoContraste');
+            var modal = document.getElementById('modalPerfil');
+            if (!interruptor || !modal) return;
+            var html = document.documentElement;
+            var original = html.classList.contains('dv-contraste');
+            var guardando = false;
+            interruptor.addEventListener('change', function () { html.classList.toggle('dv-contraste', interruptor.checked); });
+            modal.querySelector('form').addEventListener('submit', function () { guardando = true; });
+            modal.addEventListener('hidden.bs.modal', function () {
+                if (guardando) return;
+                html.classList.toggle('dv-contraste', original);
+                interruptor.checked = original;
+            });
+        })();
+    </script>
     <script src="{{ asset('js/dv-mobile.js') }}?v={{ filemtime(public_path('js/dv-mobile.js')) }}"></script>
 
     <script>

@@ -15,6 +15,11 @@ class PerfilUsuario extends Model
         'nombre',
         'cargo',
         'color',
+        'alto_contraste',
+    ];
+
+    protected $casts = [
+        'alto_contraste' => 'boolean',
     ];
 
     public const COLORES = ['blue', 'purple', 'orange', 'green'];

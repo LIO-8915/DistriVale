@@ -35,6 +35,27 @@
    propio jalar-para-recargar encima del nuestro. */
 .dv-main { overscroll-behavior-y: contain; }
 
+/* ---------- Sin "hover" pegado en pantallas táctiles ----------
+   En celular/iPad el :hover se queda activo tras tocar un botón hasta que se toca otra cosa
+   (el botón se ve "presionado" para siempre). Los efectos propios van dentro de
+   @media (hover: hover) (ver el layout); los de Bootstrap se neutralizan aquí: el color de
+   "hover" de cada .btn se iguala al normal. :active (el toque en curso) no se toca. */
+@media (hover: none) {
+    .btn {
+        --bs-btn-hover-color: var(--bs-btn-color);
+        --bs-btn-hover-bg: var(--bs-btn-bg);
+        --bs-btn-hover-border-color: var(--bs-btn-border-color);
+    }
+}
+
+/* ---------- Cifras de ancho fijo ----------
+   Inter trae dígitos "proporcionales" (el 1 es más angosto que el 8) y en una columna de
+   montos las cifras no quedaban alineadas dígito con dígito. `tnum` los iguala. */
+.table, .stat-card .stat-value, .dv-activity-amount, .dv-recibo-totales, .dv-vale-monto, .dv-vale-saldo,
+.dv-stack-val, .dv-fecha-legible, input[type="number"], .dv-matrix-scroll {
+    font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Jalar para actualizar (dv-mobile.js) ---------- */
 .dv-ptr {
     position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 1040;
@@ -109,6 +130,14 @@
     .dv-conexion, .dv-conexion.show { transition: none; }
     .dv-conexion-sacudir { animation: none; }
 }
+
+/* ---------- Fecha legible bajo cada <input type="date"> (dv-mobile.js, pantallas táctiles) ----------
+   El selector de fecha nativo de un celular/iPad muestra el formato de su idioma de sistema:
+   en inglés "10/06/2026" es 6 de octubre, pero se lee como 10 de junio. Al lado se escribe
+   la fecha completa en español para que nadie capture ni confirme un día equivocado. */
+.dv-fecha-legible { margin-top: .35rem; font-size: .9rem; font-weight: 600; color: #1c2733; }
+.dv-fecha-legible:empty { display: none; }
+.dv-fecha-legible .bi { margin-right: .35rem; color: var(--dv-accent); }
 
 /* Si el teléfono se gira a horizontal después de haber etiquetado las tablas, el envoltorio
    del valor no debe alterar el diseño de tabla normal. */
@@ -268,7 +297,10 @@
        En 3 columnas, "$59,892.28" y "06/10/2026" se partían a media cifra. */
     .dv-resumen-fila > [class*="col-"] {
         flex: 0 0 100%; width: 100%; display: flex; align-items: center; justify-content: space-between;
-        gap: .75rem; text-align: left; padding: .55rem .25rem; border: 0 !important;
+        gap: .75rem; text-align: left; border: 0 !important;
+        /* El .row de Bootstrap trae margen negativo (-gutter/2); este relleno lo compensa
+           para que el texto quede alineado con el resto del contenido de la tarjeta. */
+        padding: .55rem calc(var(--bs-gutter-x, 1.5rem) * .5);
     }
     .dv-resumen-fila > [class*="col-"] + [class*="col-"] { border-top: 1px solid rgba(20, 30, 50, .12) !important; }
     .dv-resumen-fila .fs-5 { font-size: 1.15rem !important; }
@@ -291,7 +323,7 @@
         box-shadow: 0 4px 12px rgba(30, 41, 59, .08);
     }
     table.dv-stack tbody > tr:last-child { margin-bottom: 0; }
-    table.dv-stack tbody > tr:hover { background: rgba(255, 255, 255, .6); }
+    @media (hover: hover) { table.dv-stack tbody > tr:hover { background: rgba(255, 255, 255, .6); } }
     table.dv-stack td {
         display: flex; align-items: center; justify-content: space-between; gap: .75rem;
         padding: .3rem 0; border: 0; font-size: 1rem; text-align: right;
@@ -334,6 +366,43 @@
     .dv-matrix-scroll .dv-matrix-pin { min-width: 128px; }
     .dv-matrix-scroll .table th, .dv-matrix-scroll .table td { padding: .6rem .7rem; }
 
+    /* Un campo editable dentro de una tarjeta de tabla (p. ej. el "Monto" del recibo)
+       necesita ancho de verdad: antes quedaba en ~65px y solo se leía el primer
+       dígito. El max-width en línea de la celda era de la tabla ancha. */
+    table.dv-stack td { max-width: none !important; }
+    table.dv-stack td > .dv-stack-val:has(> .form-control) { flex: 1 1 auto; display: flex; justify-content: flex-end; }
+    table.dv-stack td > .dv-stack-val > .form-control { width: min(12rem, 100%); text-align: right; }
+
+    /* ---- Pestañas de la ficha del cliente (Resumen · Vales · Pagos…) ---- */
+    .dv-chip { min-height: var(--dv-m-tap); display: inline-flex; align-items: center; }
+
+    /* ---- Vales por financiera (ficha del cliente) ----
+       Cuatro columnas con ancho mínimo fijo (90+100+100+barra+70) no caben en ~340px y
+       la última salía recortada y sin etiquetas. En celular: folio y avance arriba,
+       monto y saldo debajo con su etiqueta, barra a todo lo ancho. */
+    .dv-vale-fila {
+        display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "folio avance" "monto saldo" "barra barra";
+        align-items: center; gap: .3rem .75rem; padding: .7rem 0 !important;
+    }
+    .dv-vale-folio { grid-area: folio; min-width: 0 !important; font-size: 1.05rem; overflow-wrap: anywhere; }
+    .dv-vale-avance { grid-area: avance; min-width: 0 !important; }
+    .dv-vale-monto { grid-area: monto; min-width: 0 !important; }
+    .dv-vale-saldo { grid-area: saldo; min-width: 0 !important; text-align: right; }
+    .dv-vale-barra { grid-area: barra; margin: .15rem 0 0 !important; }
+    .dv-vale-et {
+        display: inline !important; margin-right: .4rem; font-size: .74rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em; opacity: .65;
+    }
+    .dv-vale-monto, .dv-vale-saldo { white-space: nowrap; }   /* una cifra nunca se parte en dos líneas */
+
+    /* ---- Botones de formulario (Guardar | Cancelar): mismo ancho, repartidos en la fila ---- */
+    form .d-flex.gap-2:has(> .dv-btn-cancelar) { gap: .6rem !important; }
+    form .d-flex.gap-2:has(> .dv-btn-cancelar) > .btn { flex: 1 1 0; }
+
+    /* Botón solo-ícono del encabezado (volver, etc.): compacto, no a todo lo ancho */
+    #dv-topbar-actions > .btn.dv-btn-icono { flex: 0 0 var(--dv-m-tap); width: var(--dv-m-tap); padding-left: 0; padding-right: 0; }
+
     /* ---- Gráficas ---- */
     .dv-avance-donut-wrap { max-width: 190px; }
 }
@@ -341,6 +410,14 @@
 /* =====================================================================
    Las cuatro categorías: solo cambian los tokens de arriba
    ===================================================================== */
+
+/* Menos de 400px (Compacto y Estándar): monto y saldo no caben lado a lado sin partir las
+   cifras; cada uno va en su propio renglón, etiqueta a la izquierda y valor a la derecha. */
+@media (max-width: 399.98px) {
+    .dv-vale-fila { grid-template-areas: "folio avance" "monto monto" "saldo saldo" "barra barra"; }
+    .dv-vale-monto, .dv-vale-saldo { display: flex; align-items: baseline; justify-content: space-between; text-align: left; }
+    .dv-vale-et { margin-right: 0; }
+}
 
 /* Compacto — hasta 374px */
 @media (max-width: 374.98px) {

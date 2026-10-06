@@ -32,11 +32,11 @@
                         </span>
                     </td>
                     <td class="text-end">
-                        <a href="{{ route('clientes.show', $cliente) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
-                        <a href="{{ route('clientes.edit', $cliente) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                        <a href="{{ route('clientes.show', $cliente) }}" class="btn btn-sm btn-outline-secondary" aria-label="Ver cliente" title="Ver cliente"><i class="bi bi-eye"></i></a>
+                        <a href="{{ route('clientes.edit', $cliente) }}" class="btn btn-sm btn-outline-secondary" aria-label="Editar cliente" title="Editar cliente"><i class="bi bi-pencil"></i></a>
                         <form action="{{ route('clientes.destroy', $cliente) }}" method="POST" class="d-inline" data-confirm="¿Eliminar este cliente?">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="Eliminar cliente" title="Eliminar cliente"><i class="bi bi-trash"></i></button>
                         </form>
                     </td>
                 </tr>

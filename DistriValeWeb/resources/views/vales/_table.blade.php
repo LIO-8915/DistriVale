@@ -27,17 +27,17 @@
                     </td>
                     <td><span class="badge badge-estado-{{ $vale->estado }}">{{ $vale->estadoLegible() }}</span></td>
                     <td class="text-end">
-                        <a href="{{ route('vales.show', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                        <a href="{{ route('vales.show', $vale) }}" class="btn btn-sm btn-outline-secondary" aria-label="Ver crédito" title="Ver crédito"><i class="bi bi-eye"></i></a>
                         @if ($vale->estado === 'LIQUIDADO')
                             <form method="GET" action="{{ route('vales.edit', $vale) }}" class="d-inline" data-confirm="Este crédito ya está liquidado. ¿Seguro que quieres modificarlo?">
-                                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Editar crédito" title="Editar crédito"><i class="bi bi-pencil"></i></button>
                             </form>
                         @else
-                            <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ route('vales.edit', $vale) }}" class="btn btn-sm btn-outline-secondary" aria-label="Editar crédito" title="Editar crédito"><i class="bi bi-pencil"></i></a>
                         @endif
                         <form action="{{ route('vales.destroy', $vale) }}" method="POST" class="d-inline" data-confirm="¿Eliminar este crédito?">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" aria-label="Eliminar crédito" title="Eliminar crédito"><i class="bi bi-trash"></i></button>
                         </form>
                     </td>
                 </tr>

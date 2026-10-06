@@ -89,12 +89,71 @@
         });
     }
 
+    // ---------------------------------------------------------------- 2b. Fechas legibles
+    // El <input type="date"> nativo de un celular o iPad usa el formato del idioma del
+    // SISTEMA (en inglés, "10/06/2026" = 6 de octubre pero se lee como 10 de junio).
+    // Debajo de cada uno se escribe la fecha completa en español. Solo en pantallas
+    // táctiles; en la PC el WebView ya usa el formato de México.
+    var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    var esTactil = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window);
+
+    function fechaLegible(valor) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || '');
+        if (!m) return '';
+        var y = +m[1], mes = +m[2] - 1, dia = +m[3];
+        var f = new Date(y, mes, dia);
+        if (f.getFullYear() !== y || f.getMonth() !== mes || f.getDate() !== dia) return '';   // 31 de febrero, etc.
+        return DIAS[f.getDay()] + ' ' + dia + ' de ' + MESES[mes] + ' de ' + y;
+    }
+
+    function pintarFecha(input, nota) {
+        var texto = fechaLegible(input.value);
+        nota.textContent = '';
+        if (!texto) return;
+        var icono = doc.createElement('i');
+        icono.className = 'bi bi-calendar-check';
+        icono.setAttribute('aria-hidden', 'true');
+        nota.appendChild(icono);
+        nota.appendChild(doc.createTextNode(texto));
+    }
+
+    function etiquetarFechas(raiz) {
+        if (!esTactil) return;
+        (raiz || doc).querySelectorAll('#dv-view input[type="date"]').forEach(function (input) {
+            var nota = input.nextElementSibling;
+            if (!nota || !nota.classList.contains('dv-fecha-legible')) {
+                nota = doc.createElement('div');
+                nota.className = 'dv-fecha-legible';
+                nota.setAttribute('aria-live', 'polite');
+                input.insertAdjacentElement('afterend', nota);
+            }
+            if (!input.dataset.dvFecha) {
+                input.dataset.dvFecha = '1';
+                var alCambiar = function () { pintarFecha(input, nota); };
+                input.addEventListener('input', alCambiar);
+                input.addEventListener('change', alCambiar);
+            }
+            pintarFecha(input, nota);
+        });
+    }
+
+    // Botones del encabezado que solo llevan un ícono (volver…): se les marca para que
+    // en celular no ocupen todo el ancho de la fila.
+    function marcarBotonesIcono() {
+        doc.querySelectorAll('#dv-topbar-actions .btn').forEach(function (b) {
+            b.classList.toggle('dv-btn-icono', b.textContent.trim() === '');
+        });
+    }
+
     var etiquetarPendiente = null;
     function etiquetarPronto() {
         if (etiquetarPendiente) return;
         etiquetarPendiente = setTimeout(function () {
             etiquetarPendiente = null;
             etiquetarTablas();
+            etiquetarFechas();
+            marcarBotonesIcono();
         }, 30);
     }
 
@@ -316,6 +375,8 @@
     function iniciar() {
         marcarPantalla();
         etiquetarTablas();
+        etiquetarFechas();
+        marcarBotonesIcono();
         iniciarBarra();
         iniciarPTR();
 

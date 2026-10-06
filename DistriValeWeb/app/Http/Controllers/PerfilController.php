@@ -13,7 +13,10 @@ class PerfilController extends Controller
             'nombre' => 'required|string|max:100',
             'cargo' => 'nullable|string|max:100',
             'color' => 'required|in:'.implode(',', PerfilUsuario::COLORES),
+            'alto_contraste' => 'nullable|boolean',
         ]);
+        // El interruptor manda "0" (campo oculto) o "1": un checkbox sin marcar no envía nada.
+        $data['alto_contraste'] = $request->boolean('alto_contraste');
 
         PerfilUsuario::actual()->update($data);
 

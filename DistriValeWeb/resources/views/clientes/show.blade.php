@@ -4,7 +4,7 @@
 @section('actions')
     <a href="{{ route('clientes.pdf', $cliente) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> Descargar PDF</a>
     <a href="{{ route('clientes.edit', $cliente) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Editar</a>
-    <a href="{{ route('clientes.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <a href="{{ route('clientes.index') }}" class="btn btn-sm btn-outline-secondary" aria-label="Volver a clientes" title="Volver a clientes"><i class="bi bi-arrow-left"></i></a>
 @endsection
 
 @section('content')
@@ -12,8 +12,8 @@
     <div class="col-lg-5">
         <div class="card p-3 h-100">
             <div class="d-flex align-items-start gap-3">
-                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                     style="width:56px;height:56px;background:linear-gradient(135deg,#4f7cff,#7aa2ff);color:#fff;font-weight:700;font-size:1.1rem;">
+                <div class="rounded-circle icon-blue d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width:56px;height:56px;color:#fff;font-weight:700;font-size:1.1rem;">
                     {{ collect(explode(' ', $cliente->nombre_completo))->map(fn($p) => mb_substr($p,0,1))->take(2)->join('') }}
                 </div>
                 <div class="flex-grow-1">
@@ -91,16 +91,16 @@
                         </div>
                         @foreach ($grupo as $vale)
                             @php $avance = $vale->monto_original > 0 ? round((1 - $vale->saldo_pendiente / $vale->monto_original) * 100) : 0; @endphp
-                            <a href="{{ route('vales.show', $vale) }}" class="d-flex align-items-center justify-content-between py-2 text-decoration-none text-reset {{ !$loop->last ? 'border-bottom' : '' }}">
-                                <div style="min-width:90px;"><span class="fw-semibold">{{ $vale->folio_vale }}</span></div>
-                                <div style="min-width:100px;">${{ number_format($vale->monto_original, 2) }}</div>
-                                <div style="min-width:100px;">${{ number_format($vale->saldo_pendiente, 2) }}</div>
-                                <div class="flex-grow-1 mx-3">
+                            <a href="{{ route('vales.show', $vale) }}" class="dv-vale-fila d-flex align-items-center justify-content-between py-2 text-decoration-none text-reset {{ !$loop->last ? 'border-bottom' : '' }}">
+                                <div class="dv-vale-folio"><span class="fw-semibold">{{ $vale->folio_vale }}</span></div>
+                                <div class="dv-vale-monto"><span class="dv-vale-et">Monto</span>${{ number_format($vale->monto_original, 2) }}</div>
+                                <div class="dv-vale-saldo"><span class="dv-vale-et">Saldo</span>${{ number_format($vale->saldo_pendiente, 2) }}</div>
+                                <div class="dv-vale-barra flex-grow-1 mx-3">
                                     <div class="progress" style="height:6px;">
                                         <div class="progress-bar bg-success" style="width:{{ $avance }}%"></div>
                                     </div>
                                 </div>
-                                <div style="min-width:70px;" class="text-end"><span class="badge badge-estado-{{ $vale->estado }}">{{ $avance }}%</span></div>
+                                <div class="dv-vale-avance text-end"><span class="badge badge-estado-{{ $vale->estado }}" title="Avance de pago">{{ $avance }}%</span></div>
                             </a>
                         @endforeach
                     </div>
@@ -178,6 +178,12 @@
         padding: .45rem 1rem; font-size: .85rem; font-weight: 600; color: #000; cursor: pointer;
     }
     .dv-chip.active { background: linear-gradient(135deg, #4f7cff, #6f9bff); color: #fff; border-color: transparent; }
+    /* Renglón de vale (pestaña Vales / Créditos): mismos anchos de siempre en pantalla
+       ancha; en celular dv-mobile.css lo reacomoda en rejilla y muestra las etiquetas. */
+    .dv-vale-folio { min-width: 90px; }
+    .dv-vale-monto, .dv-vale-saldo { min-width: 100px; }
+    .dv-vale-avance { min-width: 70px; }
+    .dv-vale-et { display: none; }
 </style>
 
 @push('scripts')

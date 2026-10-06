@@ -53,10 +53,10 @@
                             </span>
                         </td>
                         <td class="text-end">
-                            <a href="{{ route('financieras.edit', $financiera) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                            <a href="{{ route('financieras.edit', $financiera) }}" class="btn btn-sm btn-outline-secondary" aria-label="Editar financiera" title="Editar financiera"><i class="bi bi-pencil"></i></a>
                             <form action="{{ route('financieras.destroy', $financiera) }}" method="POST" class="d-inline" data-confirm="¿Eliminar esta financiera?">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" aria-label="Eliminar financiera" title="Eliminar financiera"><i class="bi bi-trash"></i></button>
                             </form>
                         </td>
                     </tr>
