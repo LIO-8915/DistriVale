@@ -154,8 +154,7 @@ class GoogleDriveController extends Controller
 
             // 4) Swap atómico: nunca se sobreescribe database.sqlite en el
             //    lugar, se renombra un archivo ya completo y validado sobre él.
-            DB::disconnect();
-            rename($downloadPath, $dbPath);
+            $this->reemplazarBase($downloadPath, $dbPath);
 
             return back()->with('success', 'Base de datos restaurada desde Google Drive. Si no era lo que esperabas, usa "Devolver cambios".');
         } catch (\Throwable $e) {
@@ -176,8 +175,7 @@ class GoogleDriveController extends Controller
 
         try {
             $dbPath = database_path('database.sqlite');
-            DB::disconnect();
-            rename($snapshotPath, $dbPath);
+            $this->reemplazarBase($snapshotPath, $dbPath);
             @unlink($this->preRestoreMetaPath());
 
             return back()->with('success', 'Se devolvió la base de datos al estado anterior a la última restauración.');
@@ -189,6 +187,43 @@ class GoogleDriveController extends Controller
     }
 
     // --- Helpers internos ---
+
+    /**
+     * Reemplaza database.sqlite por un archivo ya validado, seguro con
+     * journal_mode=WAL: ahí los cambios recientes pueden vivir solo en
+     * database.sqlite-wal, así que renombrar encima sin más (a) perdería
+     * esos cambios si algo falla a medias, y (b) dejaría un -wal viejo
+     * junto a una base distinta. Por eso primero se vacía el WAL a la base
+     * (y si hay otro dispositivo escribiendo en este instante, se aborta ANTES
+     * de tocar nada), y recién entonces se renombra.
+     */
+    private function reemplazarBase(string $origen, string $dbPath): void
+    {
+        $filas = DB::select('PRAGMA wal_checkpoint(TRUNCATE)');
+        if (! empty($filas) && (int) ($filas[0]->busy ?? 0) === 1) {
+            throw new \RuntimeException('Hay otro dispositivo usando la base de datos en este momento. Intenta de nuevo en unos segundos.');
+        }
+
+        DB::disconnect();
+
+        foreach (['-wal', '-shm'] as $sufijo) {
+            @unlink($dbPath.$sufijo);
+        }
+
+        // En Windows renombrar encima de un archivo abierto por otro
+        // proceso falla con "acceso denegado": se reintenta unos instantes
+        // por si es una petición de otro dispositivo que ya está terminando.
+        $ultimoError = null;
+        for ($intento = 0; $intento < 10; $intento++) {
+            if (@rename($origen, $dbPath)) {
+                return;
+            }
+            $ultimoError = error_get_last()['message'] ?? 'rename falló';
+            usleep(300_000);
+        }
+
+        throw new \RuntimeException('No se pudo reemplazar la base de datos ('.$ultimoError.').');
+    }
 
     private function preRestoreDir(): string
     {

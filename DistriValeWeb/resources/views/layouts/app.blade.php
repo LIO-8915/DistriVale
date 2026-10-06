@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>DistriVale - @yield('title', 'Panel')</title>
     <!-- Every asset below is vendored locally (public/vendor/) instead of loaded from a CDN:
          this app runs inside a Tauri/WebView2 desktop shell that may have no internet
@@ -891,9 +892,22 @@
             <a href="{{ route('drive.index') }}" title="Respaldo" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('drive.*') ? 'active' : '' }}">
                 <i class="bi bi-cloud-arrow-up"></i> <span class="dv-label">Respaldo</span>
             </a>
+            @unless ($esRemoto)
+                <a href="{{ route('acceso-remoto.index') }}" title="Acceso remoto" data-bs-toggle="tooltip" data-bs-placement="right" class="{{ request()->routeIs('acceso-remoto.*') ? 'active' : '' }}">
+                    <i class="bi bi-tablet"></i> <span class="dv-label">Acceso remoto</span>
+                </a>
+            @endunless
         </nav>
 
-        <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> <span class="dv-label">Sistema local</span></div>
+        @if ($esRemoto)
+            <form class="dv-sidebar-footer" method="POST" action="{{ route('remoto.salir') }}">
+                @csrf
+                <i class="bi bi-wifi"></i> <span class="dv-label">Remoto ·</span>
+                <button type="submit" class="btn btn-link btn-sm p-0 dv-label" style="color: inherit;">Desconectar</button>
+            </form>
+        @else
+            <div class="dv-sidebar-footer"><i class="bi bi-hdd-network"></i> <span class="dv-label">Sistema local</span></div>
+        @endif
     </nav>
 
     <main class="dv-main">
@@ -1060,6 +1074,11 @@
     </script>
 
     <div id="dv-page-scripts">@stack('scripts')</div>
+
+    @unless ($esRemoto)
+        @include('partials.remoto-solicitudes')
+        <script src="{{ asset('js/dv-remoto.js') }}"></script>
+    @endunless
 
     <script src="{{ asset('js/dv-motion.js') }}"></script>
     <script src="{{ asset('js/dv-nav.js') }}"></script>

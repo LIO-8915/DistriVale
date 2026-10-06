@@ -4,6 +4,9 @@
 @section('subtitle', 'Guarda y trae la base de datos desde tu Google Drive.')
 
 @section('content')
+{{-- Desde un dispositivo remoto solo se puede respaldar: conectar la cuenta abre el
+     login de Google en la PC, y restaurar/deshacer reemplazan la base de todos. --}}
+@php($remoto = ! \App\Support\AccesoRemoto::esLocal(request()))
 
 @unless ($configured)
     <div class="card p-4 mb-3">
@@ -25,19 +28,25 @@
                 <span class="badge bg-success">Conectado</span>
                 <span>{{ $accountEmail }}</span>
             </div>
-            <form method="POST" action="{{ route('drive.disconnect') }}" data-confirm="¿Desconectar esta cuenta de Google Drive? Vas a poder volver a conectarla cuando quieras.">
-                @csrf
-                <button class="btn btn-outline-danger btn-sm">Desconectar</button>
-            </form>
+            @unless ($remoto)
+                <form method="POST" action="{{ route('drive.disconnect') }}" data-confirm="¿Desconectar esta cuenta de Google Drive? Vas a poder volver a conectarla cuando quieras.">
+                    @csrf
+                    <button class="btn btn-outline-danger btn-sm">Desconectar</button>
+                </form>
+            @endunless
         </div>
     @else
         <p class="text-muted">No hay ninguna cuenta conectada todavía.</p>
-        <form method="POST" action="{{ route('drive.connect') }}">
-            @csrf
-            <button class="btn btn-primary" {{ $configured ? '' : 'disabled' }}>
-                <i class="bi bi-google me-1"></i> Conectar con Google Drive
-            </button>
-        </form>
+        @if ($remoto)
+            <div class="alert alert-secondary mb-0"><i class="bi bi-pc-display me-1"></i> Conectar la cuenta de Google solo se puede hacer desde la computadora donde corre DistriVale.</div>
+        @else
+            <form method="POST" action="{{ route('drive.connect') }}">
+                @csrf
+                <button class="btn btn-primary" {{ $configured ? '' : 'disabled' }}>
+                    <i class="bi bi-google me-1"></i> Conectar con Google Drive
+                </button>
+            </form>
+        @endif
     @endif
 </div>
 
@@ -69,16 +78,20 @@
                     Trae el último respaldo de Drive y reemplaza la base de datos local.
                     Se guarda una copia de la base actual por si hay que deshacerlo.
                 </p>
-                <form method="POST" action="{{ route('drive.restore') }}"
-                      data-confirm="Esto va a reemplazar TODOS los datos locales por el último respaldo de Drive. ¿Continuar?">
-                    @csrf
-                    <button class="btn btn-outline-primary"><i class="bi bi-cloud-arrow-down me-1"></i> Restaurar</button>
-                </form>
+                @if ($remoto)
+                    <div class="alert alert-secondary mb-0"><i class="bi bi-pc-display me-1"></i> Restaurar solo se puede hacer desde la computadora donde corre DistriVale, porque reemplaza la base de datos de todos los dispositivos.</div>
+                @else
+                    <form method="POST" action="{{ route('drive.restore') }}"
+                          data-confirm="Esto va a reemplazar TODOS los datos locales por el último respaldo de Drive. ¿Continuar?">
+                        @csrf
+                        <button class="btn btn-outline-primary"><i class="bi bi-cloud-arrow-down me-1"></i> Restaurar</button>
+                    </form>
+                @endif
             </div>
         </div>
     </div>
 
-    @if ($rollbackAvailable)
+    @if ($rollbackAvailable && ! $remoto)
         <div class="card p-4 mt-3" style="border-color: rgba(255,159,67,.5);">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div>

@@ -34,7 +34,9 @@ mod supabase_licensing;
 /// nuevo — no hace falta reescribir nada.
 const LICENCIA_ACTIVADA: bool = false;
 
-use std::net::TcpStream;
+mod remoto;
+
+use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -59,12 +61,15 @@ struct Worker {
 ///
 /// - Camino normal: `workers` (4 × `php-cgi`) + `frontal` (Caddy).
 /// - Camino de respaldo: `frontal` guarda el proceso de `php artisan serve`.
+/// - `remoto_caddy`: el segundo Caddy, ligado a la IP de la red local, que
+///   solo existe mientras el acceso remoto está encendido (ver remoto.rs).
 ///
 /// `closing` avisa al hilo supervisor de que ya no debe relanzar nada.
 #[derive(Default)]
 struct ServerStack {
     workers: Vec<Worker>,
     frontal: Option<Child>,
+    remoto_caddy: Option<Child>,
     closing: bool,
 }
 
@@ -275,7 +280,12 @@ fn resolve_caddy(app: &AppHandle) -> Option<PathBuf> {
     None
 }
 
-fn spawn_php_cgi(php_dir: &PathBuf, webapp_dir: &PathBuf, port: u16) -> std::io::Result<Child> {
+fn spawn_php_cgi(
+    php_dir: &PathBuf,
+    webapp_dir: &PathBuf,
+    port: u16,
+    control_dir: &PathBuf,
+) -> std::io::Result<Child> {
     let mut cmd = Command::new(php_dir.join("php-cgi.exe"));
     cmd.arg("-b")
         .arg(format!("127.0.0.1:{port}"))
@@ -286,6 +296,9 @@ fn spawn_php_cgi(php_dir: &PathBuf, webapp_dir: &PathBuf, port: u16) -> std::io:
         // solo tras N peticiones y alguien tendría que relanzarlo. La
         // supervisión de `vigilar_servidor` ya cubre los que mueran por error.
         .env("PHP_FCGI_MAX_REQUESTS", "0")
+        // Carpeta por la que Laravel y este shell se hablan para el acceso
+        // remoto (ver remoto.rs). Sin ella, Laravel no ofrece acceso remoto.
+        .env("DV_CONTROL_DIR", control_dir)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
 
@@ -300,14 +313,38 @@ fn spawn_php_cgi(php_dir: &PathBuf, webapp_dir: &PathBuf, port: u16) -> std::io:
 /// (p. ej. `C:\Users\Nombre Apellido\...`) hace que Caddy rechace la
 /// configuración con "too many arguments".
 ///
-/// `bind 127.0.0.1` es obligatorio: con solo `http://127.0.0.1:puerto` como
-/// dirección del sitio, Caddy igual escucha en TODAS las interfaces
-/// (0.0.0.0 y [::]) — la app quedaría accesible desde la red local.
+/// `bind` es obligatorio: con solo `http://IP:puerto` como dirección del
+/// sitio, Caddy igual escucha en TODAS las interfaces (0.0.0.0 y [::]) — la
+/// app quedaría accesible desde la red local aunque se quisiera solo local.
+///
+/// Hay DOS Caddy independientes sobre los mismos php-cgi: el de siempre, solo
+/// en 127.0.0.1 (el de la ventana de la PC; nunca se reinicia para esto), y,
+/// únicamente mientras el acceso remoto está encendido, otro `bind` a la IP de
+/// la red local (ver remoto.rs). Apagar el acceso remoto es matar el segundo.
+fn construir_caddyfile(root: &str, upstreams: &str, ip: &str, port: u16) -> String {
+    format!(
+        "{{\n\tadmin off\n\tauto_https off\n}}\n\
+         http://{ip}:{port} {{\n\
+         \tbind {ip}\n\
+         \troot * \"{root}\"\n\
+         \tphp_fastcgi {upstreams} {{\n\
+         \t\tlb_policy least_conn\n\
+         \t\tread_timeout 120s\n\
+         \t}}\n\
+         \tfile_server\n\
+         }}\n"
+    )
+}
+
+/// Escribe `php/tmp/<nombre_archivo>` (`Caddyfile` el local, `Caddyfile-remoto`
+/// el de la red) y devuelve su ruta.
 fn write_caddyfile(
     php_dir: &PathBuf,
     webapp_dir: &PathBuf,
+    ip: &str,
     port: u16,
     worker_ports: &[u16],
+    nombre_archivo: &str,
 ) -> std::io::Result<PathBuf> {
     let dir = php_dir.join("tmp");
     std::fs::create_dir_all(&dir)?;
@@ -319,21 +356,8 @@ fn write_caddyfile(
         .collect::<Vec<_>>()
         .join(" ");
 
-    let contenido = format!(
-        "{{\n\tadmin off\n\tauto_https off\n}}\n\
-         http://127.0.0.1:{port} {{\n\
-         \tbind 127.0.0.1\n\
-         \troot * \"{root}\"\n\
-         \tphp_fastcgi {upstreams} {{\n\
-         \t\tlb_policy least_conn\n\
-         \t\tread_timeout 120s\n\
-         \t}}\n\
-         \tfile_server\n\
-         }}\n"
-    );
-
-    let ruta = dir.join("Caddyfile");
-    std::fs::write(&ruta, contenido)?;
+    let ruta = dir.join(nombre_archivo);
+    std::fs::write(&ruta, construir_caddyfile(&root, &upstreams, ip, port))?;
     Ok(ruta)
 }
 
@@ -370,18 +394,35 @@ fn esperar_puerto(port: u16, timeout: Duration) -> bool {
     false
 }
 
+/// Como `esperar_puerto` pero para una IP cualquiera (la de la red local).
+fn esperar_direccion(ip: Ipv4Addr, port: u16, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    let destino = SocketAddr::from((ip, port));
+    while Instant::now() < deadline {
+        if TcpStream::connect_timeout(&destino, Duration::from_millis(500)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
 /// Camino normal: `PHP_WORKERS` procesos `php-cgi` + Caddy delante. Los
 /// `php-cgi` se levantan y se confirman ANTES de arrancar Caddy: si Caddy
 /// recibiera la primera petición sin ellos, respondería 502 y la ventana se
 /// quedaría con esa página de error (WebView2 no reintenta la navegación).
+///
+/// Devuelve la carpeta de control del acceso remoto (ver remoto.rs), que
+/// también les llega a los php-cgi como `DV_CONTROL_DIR`.
 fn iniciar_stack(
     app_handle: &AppHandle,
     php_dir: &PathBuf,
     caddy_exe: &PathBuf,
     webapp_dir: &PathBuf,
     port: u16,
-) -> Result<(), String> {
+) -> Result<PathBuf, String> {
     write_php_ini(php_dir).map_err(|e| format!("php.ini: {e}"))?;
+    let control_dir = remoto::preparar_control(php_dir).map_err(|e| format!("carpeta de control: {e}"))?;
 
     let worker_ports = find_free_ports(PHP_WORKERS);
     if worker_ports.len() != PHP_WORKERS {
@@ -393,7 +434,7 @@ fn iniciar_stack(
         let mut stack = state.0.lock().unwrap();
         stack.closing = false;
         for &p in &worker_ports {
-            let child = spawn_php_cgi(php_dir, webapp_dir, p).map_err(|e| format!("php-cgi: {e}"))?;
+            let child = spawn_php_cgi(php_dir, webapp_dir, p, &control_dir).map_err(|e| format!("php-cgi: {e}"))?;
             stack.workers.push(Worker { port: p, child });
         }
     }
@@ -404,12 +445,13 @@ fn iniciar_stack(
         }
     }
 
-    let caddyfile = write_caddyfile(php_dir, webapp_dir, port, &worker_ports).map_err(|e| format!("Caddyfile: {e}"))?;
+    let caddyfile = write_caddyfile(php_dir, webapp_dir, "127.0.0.1", port, &worker_ports, "Caddyfile")
+        .map_err(|e| format!("Caddyfile: {e}"))?;
     let data_dir = php_dir.join("tmp").join("caddy-data");
     let caddy = spawn_caddy(caddy_exe, &caddyfile, &data_dir).map_err(|e| format!("caddy: {e}"))?;
     state.0.lock().unwrap().frontal = Some(caddy);
 
-    Ok(())
+    Ok(control_dir)
 }
 
 /// Mata un proceso y todos sus descendientes. `Child::kill` manda
@@ -440,6 +482,9 @@ fn detener_servidor(app_handle: &AppHandle) {
     };
     let mut stack = state.0.lock().unwrap();
     stack.closing = true;
+    if let Some(mut remoto) = stack.remoto_caddy.take() {
+        matar_arbol(&mut remoto);
+    }
     if let Some(mut frontal) = stack.frontal.take() {
         matar_arbol(&mut frontal);
     }
@@ -448,45 +493,93 @@ fn detener_servidor(app_handle: &AppHandle) {
     }
 }
 
-/// Hilo supervisor: si un `php-cgi` o Caddy muere por error, lo relanza en el
-/// mismo puerto — sin esto, un solo proceso caído dejaría 1/4 de las
-/// peticiones fallando hasta cerrar y reabrir la app.
+/// Hilo supervisor (ciclo de ~500 ms):
+///  - cada 2 s: si un `php-cgi`, Caddy o el Caddy remoto muere por error, lo
+///    relanza en el mismo puerto — sin esto, un solo proceso caído dejaría 1/4
+///    de las peticiones fallando hasta cerrar y reabrir la app;
+///  - cada ciclo: atiende el acceso remoto (ver remoto.rs): encender/apagar el
+///    puerto de la red local, firewall, suspensión y aviso de solicitudes.
 fn vigilar_servidor(
     app_handle: AppHandle,
     php_dir: PathBuf,
     caddy_exe: PathBuf,
     webapp_dir: PathBuf,
+    control_dir: PathBuf,
 ) {
     std::thread::spawn(move || {
+        let mut remoto = remoto::Remoto::new(control_dir.clone(), caddy_exe.clone());
+        let mut ciclo: u64 = 0;
+
         loop {
-            std::thread::sleep(Duration::from_secs(2));
+            std::thread::sleep(Duration::from_millis(500));
+            ciclo += 1;
+
             let Some(state) = app_handle.try_state::<PhpServer>() else {
                 return;
             };
             let mut stack = state.0.lock().unwrap();
             if stack.closing {
+                remoto.cerrar();
                 return;
             }
 
-            for w in stack.workers.iter_mut() {
-                if matches!(w.child.try_wait(), Ok(Some(_))) {
-                    if let Ok(nuevo) = spawn_php_cgi(&php_dir, &webapp_dir, w.port) {
-                        w.child = nuevo;
+            if ciclo % 4 == 0 {
+                for w in stack.workers.iter_mut() {
+                    if matches!(w.child.try_wait(), Ok(Some(_))) {
+                        if let Ok(nuevo) = spawn_php_cgi(&php_dir, &webapp_dir, w.port, &control_dir) {
+                            w.child = nuevo;
+                        }
                     }
+                }
+
+                let caddy_muerto = match stack.frontal.as_mut() {
+                    Some(c) => matches!(c.try_wait(), Ok(Some(_))),
+                    None => false,
+                };
+                if caddy_muerto {
+                    let ruta = php_dir.join("tmp").join("Caddyfile");
+                    let data_dir = php_dir.join("tmp").join("caddy-data");
+                    if let Ok(nuevo) = spawn_caddy(&caddy_exe, &ruta, &data_dir) {
+                        stack.frontal = Some(nuevo);
+                    }
+                }
+
+                // Si el Caddy de la red murió, se le avisa al módulo remoto para que lo reabra.
+                let remoto_muerto = match stack.remoto_caddy.as_mut() {
+                    Some(c) => matches!(c.try_wait(), Ok(Some(_))),
+                    None => false,
+                };
+                if remoto_muerto {
+                    stack.remoto_caddy = None;
+                    remoto.caddy_murio();
                 }
             }
 
-            let caddy_muerto = match stack.frontal.as_mut() {
-                Some(c) => matches!(c.try_wait(), Ok(Some(_))),
-                None => false,
-            };
-            if caddy_muerto {
-                let ruta = php_dir.join("tmp").join("Caddyfile");
-                let data_dir = php_dir.join("tmp").join("caddy-data");
-                if let Ok(nuevo) = spawn_caddy(&caddy_exe, &ruta, &data_dir) {
-                    stack.frontal = Some(nuevo);
+            // Abre o cierra el Caddy de la red local: un proceso APARTE del
+            // principal, así la ventana de la PC nunca se queda sin servidor.
+            let mut aplicar = |destino: Option<(Ipv4Addr, u16)>| -> Result<(), String> {
+                if let Some(mut viejo) = stack.remoto_caddy.take() {
+                    matar_arbol(&mut viejo);
                 }
-            }
+                let Some((ip, puerto)) = destino else {
+                    return Ok(());
+                };
+
+                let worker_ports: Vec<u16> = stack.workers.iter().map(|w| w.port).collect();
+                let caddyfile = write_caddyfile(&php_dir, &webapp_dir, &ip.to_string(), puerto, &worker_ports, "Caddyfile-remoto")
+                    .map_err(|e| format!("Caddyfile: {e}"))?;
+                let data_dir = php_dir.join("tmp").join("caddy-data-remoto");
+                stack.remoto_caddy = Some(spawn_caddy(&caddy_exe, &caddyfile, &data_dir).map_err(|e| format!("caddy: {e}"))?);
+
+                if !esperar_direccion(ip, puerto, Duration::from_secs(10)) {
+                    if let Some(mut c) = stack.remoto_caddy.take() {
+                        matar_arbol(&mut c);
+                    }
+                    return Err("Caddy no llegó a escuchar en esa dirección".to_string());
+                }
+                Ok(())
+            };
+            remoto.paso(&app_handle, &mut aplicar);
         }
     });
 }
@@ -650,13 +743,14 @@ fn iniciar_app_principal(app_handle: AppHandle) {
     let mut listo = false;
     if let (Some(pd), Some(cd)) = (php_dir.as_ref(), caddy_exe.as_ref()) {
         if pd.join("php-cgi.exe").exists() {
-            listo = iniciar_stack(&app_handle, pd, cd, &webapp_dir, port).is_ok()
-                && wait_for_server(port, Duration::from_secs(20));
+            let control = iniciar_stack(&app_handle, pd, cd, &webapp_dir, port);
+            listo = control.is_ok() && wait_for_server(port, Duration::from_secs(20));
 
-            if listo {
-                vigilar_servidor(app_handle.clone(), pd.clone(), cd.clone(), webapp_dir.clone());
-            } else {
-                detener_servidor(&app_handle);
+            match control {
+                Ok(control_dir) if listo => {
+                    vigilar_servidor(app_handle.clone(), pd.clone(), cd.clone(), webapp_dir.clone(), control_dir);
+                }
+                _ => detener_servidor(&app_handle),
             }
         }
     }
@@ -889,3 +983,23 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error running DistriVale");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::construir_caddyfile;
+
+    #[test]
+    fn el_caddyfile_ata_el_sitio_a_la_ip_indicada() {
+        let local = construir_caddyfile("C:/Mi App/public", "127.0.0.1:9001 127.0.0.1:9002", "127.0.0.1", 50123);
+        assert!(local.contains("http://127.0.0.1:50123 {"));
+        assert!(local.contains("\tbind 127.0.0.1\n"), "sin bind Caddy escucharía en todas las interfaces");
+        assert!(local.contains("root * \"C:/Mi App/public\""), "la ruta con espacios va entre comillas");
+        assert!(local.contains("php_fastcgi 127.0.0.1:9001 127.0.0.1:9002 {"));
+
+        let red = construir_caddyfile("C:/x", "127.0.0.1:9001", "192.168.1.20", 8712);
+        assert!(red.contains("http://192.168.1.20:8712 {"));
+        assert!(red.contains("\tbind 192.168.1.20\n"));
+        assert!(!red.contains("bind 0.0.0.0") && !red.contains("127.0.0.1:8712"));
+    }
+}
+

@@ -12,7 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [\App\Http\Middleware\ActualizarMora::class]);
+        // ControlAcceso va antes de ActualizarMora: una petición remota sin
+        // autorizar no debe disparar trabajo de la app.
+        $middleware->web(append: [
+            \App\Http\Middleware\ControlAcceso::class,
+            \App\Http\Middleware\ActualizarMora::class,
+        ]);
+        $middleware->alias(['solo.local' => \App\Http\Middleware\SoloLocal::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

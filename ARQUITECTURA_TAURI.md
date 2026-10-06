@@ -152,6 +152,60 @@ y abrir `http://127.0.0.1:8000` en el navegador. Todo el trabajo de módulos (cl
 
 **Obtener Caddy.** `DistriVale/caddy-portable/` está gitignorada (~53 MB). Bajar `caddy_<versión>_windows_amd64.zip` de https://github.com/caddyserver/caddy/releases y extraer **solo** `caddy.exe` ahí (probado con v2.11.7). `tauri.conf.json` la empaqueta como `resources/caddy`; el build falla si la carpeta `caddy-portable` no existe (igual que `php-portable`). Licencia Apache 2.0.
 
+## 6.2. SQLite en modo WAL (varios dispositivos a la vez)
+
+Con acceso remoto (§6.3) la PC y un iPad escriben en la misma `database.sqlite`, y ya había 4 `php-cgi` concurrentes. `config/database.php` fija `journal_mode = wal` y `busy_timeout = 5000` ms (`DB_JOURNAL_MODE` / `DB_BUSY_TIMEOUT` en `.env` lo cambian).
+
+**Qué se ganó realmente** (medido con carga mixta lectura/escritura): ~5× de rendimiento de escritura y ~5× menos latencia p99 de lectura, porque los lectores ya no bloquean al escritor. **No** elimina los errores "database is locked": PDO ya esperaba 60 s por defecto; el timeout de 5 s los hace fallar antes, y la escritura más pesada (`Mora::actualizar`, ≈1.1 s) cabe de sobra.
+
+**Trampas**:
+- Aparecen `database.sqlite-wal` y `-shm` junto al archivo. **Copiar solo `database.sqlite` con la app abierta pierde lo que aún está en el `-wal`.** Cualquier copia manual (exportar a "Revisiones de prueba", respaldos a mano) debe hacerse con la app cerrada, o ejecutar antes `PRAGMA wal_checkpoint(TRUNCATE)`, o copiar los tres archivos juntos.
+- `GoogleDriveController::reemplazarBase()` (restaurar / deshacer) hace el checkpoint antes de reemplazar y **aborta** con "Hay otro dispositivo usando la base de datos…" si no puede (otra conexión activa); luego `DB::disconnect()`, borra `-wal`/`-shm` y renombra con 10 reintentos × 300 ms (Windows).
+- El archivo debe estar en un disco local; WAL no funciona sobre carpetas de red.
+
+## 6.3. Acceso remoto desde otro dispositivo de la red local (iPad)
+
+**Idea.** La app de escritorio debe seguir abierta en la PC; el iPad abre `http://<ip-de-la-PC>:8712` en Safari. Por defecto está **apagado** y nada escucha fuera de la PC. Se enciende con un interruptor en la pantalla "Acceso remoto" (solo visible desde la PC).
+
+**Dos Caddy independientes sobre los mismos `php-cgi`** (`vigilar_servidor` / `remoto.rs`):
+- Caddy principal: `127.0.0.1:<aleatorio>`, el de siempre, **nunca se reinicia** por esto.
+- Caddy LAN: existe solo mientras el acceso remoto está encendido; `bind <IP privada de la PC>` + puerto fijo **8712** (si está ocupado prueba los 10 siguientes), Caddyfile `Caddyfile-remoto` y datos propios `caddy-data-remoto`. `bind <ip>` es obligatorio (sin él Caddy escucha en todas las interfaces). La IP se detecta con el truco de UDP-connect y solo se acepta si es RFC1918 (no 169.254.x.x).
+
+**Canal Laravel ↔ Rust**: archivos en `<php>/tmp/control` (Laravel lo recibe en `DV_CONTROL_DIR`), escritos de forma atómica (tmp + rename):
+
+| Archivo | Dirección | Contenido |
+|---|---|---|
+| `boot_id` | Rust → Laravel | Identificador de **esta** ejecución de la app; las autorizaciones de dispositivos quedan atadas a él |
+| `remoto.json` | Laravel → Rust | `{habilitado, puerto}` — lo que pide el interruptor |
+| `remoto-estado.json` | Rust → Laravel | Estado real (IP, puerto, firewall, error). Latido cada 5 s; más viejo de 15 s = "no disponible" |
+| `accion.json` | Laravel → Rust | `{id, accion}`: `crear_regla_firewall` / `verificar_firewall` |
+| `alerta.json` | Laravel → Rust | Contador de solicitudes nuevas → Rust parpadea la barra de tareas, trae la ventana al frente y suena |
+
+Se limpia todo al arrancar: **cada vez que abres la app el acceso remoto vuelve a estar apagado** y nadie queda autorizado. Sin `DV_CONTROL_DIR` (p. ej. `php artisan serve` en desarrollo) un equipo remoto **nunca** pasa.
+
+**Candado (emparejamiento con código)**
+1. El iPad abre la URL → `/remoto/acceso`, escribe un nombre y pide acceso.
+2. La PC muestra un **modal** (+ parpadeo, ventana al frente, sonido) con un código de **6 dígitos por dispositivo**.
+3. Se teclea el código en el iPad. **5 intentos máximo por código**; se puede generar otro. El código caduca a los 5 min.
+4. Si es correcto, el iPad recibe la cookie cifrada `dv_dispositivo` (token de 64 hex; en BD solo se guarda su sha256). Dura **mientras la app esté abierta**: otro `boot_id` la invalida.
+5. La PC (`REMOTE_ADDR` 127.0.0.1) entra directo, sin código. **Solo se mira `REMOTE_ADDR`**; `X-Forwarded-For` se ignora (sería falsificable).
+
+Límites (`RateLimiter`, por IP): solicitar acceso 5 / 10 min, regenerar código 3 / min, fallos de código 15 / 10 min; máximo 5 solicitudes pendientes a la vez. Dispositivos autorizados se listan y se pueden **revocar** (expulsa al instante); apagar el interruptor expulsa a todos.
+
+Middleware: `ControlAcceso` (global, grupo web) deja pasar a la PC; a un remoto solo con la función activa **y** cookie válida (`remoto.*` queda accesible sin cookie; las peticiones `fetch` de navegación reciben 401 para forzar recarga completa). `SoloLocal` (`solo.local`) protege la administración del acceso remoto y las rutas peligrosas de Drive. Los nombres que escribe un dispositivo remoto se pintan siempre con `textContent` / `@json` (XSS almacenado).
+
+**Respaldo (Drive) desde remoto: solo lectura.** Se permite "Respaldar ahora"; conectar/desconectar cuenta, restaurar y deshacer están bloqueados (403) y ocultos con aviso.
+
+**Firewall.** Un botón en la pantalla crea la regla con permiso de administrador (UAC): `netsh advfirewall firewall add rule … program=<caddy.exe> profile=private,domain remoteip=localsubnet` (nombre con prefijo sha256 de la ruta de caddy). Nunca perfil público ni internet. Si la red de Windows está marcada como **Pública**, la regla no aplica y la pantalla lo avisa.
+
+**LECCIÓN — antivirus.** Una versión de prueba lanzaba `powershell -EncodedCommand` (comprobar firewall) y AVG puso `DistriVale.exe` en **cuarentena** (`IDP.HELU.PSE92`) ~10 s después de encender el acceso. **Está prohibido usar PowerShell** en la app: la verificación usa `netsh … show rule` (código de salida 0 = existe; no depende del idioma) y `netsh advfirewall show currentprofile` (encabezado es/en); la elevación usa `ShellExecuteExW` con verbo `runas` sobre `netsh.exe`. Una prueba (`el_proyecto_ya_no_lanza_powershell`) falla si reaparece. El exe sin firmar seguirá siendo sospechoso para algunos antivirus: conviene firmarlo antes de repartirlo.
+
+**Suspensión.** Mientras el acceso está encendido, el supervisor llama a `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)` para que Windows no duerma la PC (la pantalla sí puede apagarse). Cerrar la tapa de una laptop sigue durmiéndola según la política de energía.
+
+**HTTP plano.** Sin cifrado: dentro de la red local cualquiera con acceso al Wi-Fi podría ver el tráfico (los datos de clientes viajan en claro). Decisión consciente; usar solo en la red del negocio, nunca en Wi-Fi público.
+
+**Pendiente.** Pasada de UI/táctil para el viewport del iPad (con el iPad real); validar el botón de firewall (UAC) y el parpadeo/sonido en una instalación real; probar con otros antivirus (McAfee/Defender).
+
 ## 7. Respaldo de la base de datos a Google Drive
 
 `DistriValeWeb` tiene una pantalla ("Respaldo" en el sidebar) para subir/bajar manualmente `database.sqlite` a Google Drive — ver `app/Services/GoogleDriveService.php` y `app/Http/Controllers/GoogleDriveController.php`. No es sincronización en tiempo real: es "guardar en la nube" / "traer de la nube" a demanda, con un solo nivel de deshacer para la restauración.

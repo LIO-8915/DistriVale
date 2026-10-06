@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\PerfilUsuario;
 use App\Models\Vale;
+use App\Support\AccesoRemoto;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -43,6 +44,10 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'vencimientos' => Vale::with('cliente', 'financiera')->where('estado', 'EN_MORA')->latest('updated_at')->get(),
                 'perfilUsuario' => PerfilUsuario::actual(),
+                // Acceso remoto: la PC ve el modal de solicitudes y el menú de
+                // administración; un dispositivo remoto ve el botón de desconectar.
+                'esRemoto' => ! AccesoRemoto::esLocal(request()),
+                'remotoActivo' => AccesoRemoto::activo(),
             ]);
         });
     }

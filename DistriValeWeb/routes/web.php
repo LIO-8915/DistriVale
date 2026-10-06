@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccesoRemotoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinancieraController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\LiquidacionController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\ReciboController;
+use App\Http\Controllers\RemotoController;
 use App\Http\Controllers\ValeController;
 use Illuminate\Support\Facades\Route;
 
@@ -48,11 +50,43 @@ Route::controller(LiquidacionController::class)->prefix('liquidaciones')->name('
 
 Route::put('perfil', [PerfilController::class, 'update'])->name('perfil.update');
 
+// Respaldo a Google Drive. Desde un dispositivo remoto solo se puede respaldar
+// (subir una copia, no cambia nada): conectar la cuenta abre el login de Google
+// en el navegador de LA PC, y restaurar/deshacer reemplazan la base de todos.
 Route::controller(GoogleDriveController::class)->prefix('drive')->name('drive.')->group(function () {
     Route::get('/', 'index')->name('index');
-    Route::post('/conectar', 'connect')->name('connect');
-    Route::post('/desconectar', 'disconnect')->name('disconnect');
     Route::post('/respaldar', 'backup')->name('backup');
-    Route::post('/restaurar', 'restore')->name('restore');
-    Route::post('/deshacer', 'rollback')->name('rollback');
+
+    Route::middleware('solo.local')->group(function () {
+        Route::post('/conectar', 'connect')->name('connect');
+        Route::post('/desconectar', 'disconnect')->name('disconnect');
+        Route::post('/restaurar', 'restore')->name('restore');
+        Route::post('/deshacer', 'rollback')->name('rollback');
+    });
 });
+
+// Acceso remoto — lado dispositivo (iPad, etc.). Alcanzable desde la red local
+// cuando el acceso está encendido; ControlAcceso deja pasar estas rutas sin
+// autorización previa porque son justo las que la otorgan.
+Route::prefix('remoto')->name('remoto.')->controller(RemotoController::class)->group(function () {
+    Route::get('/acceso', 'acceso')->name('acceso');
+    Route::post('/solicitar', 'solicitar')->name('solicitar');
+    Route::post('/verificar', 'verificar')->name('verificar');
+    Route::post('/regenerar', 'regenerar')->name('regenerar');
+    Route::get('/estado', 'estado')->name('estado');
+    Route::post('/salir', 'salir')->name('salir');
+});
+
+// Acceso remoto — administración. Solo desde la propia PC.
+Route::prefix('acceso-remoto')->name('acceso-remoto.')->middleware('solo.local')
+    ->controller(AccesoRemotoController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/estado', 'estado')->name('estado');
+        Route::get('/pendientes', 'pendientes')->name('pendientes');
+        Route::post('/activar', 'activar')->name('activar');
+        Route::post('/desactivar', 'desactivar')->name('desactivar');
+        Route::post('/firewall', 'firewall')->name('firewall');
+        Route::post('/firewall/verificar', 'verificarFirewall')->name('firewall.verificar');
+        Route::post('/solicitudes/{dispositivo}/rechazar', 'rechazar')->name('rechazar');
+        Route::post('/dispositivos/{dispositivo}/revocar', 'revocar')->name('revocar');
+    });

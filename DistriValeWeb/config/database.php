@@ -38,8 +38,17 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
+            // WAL: con varios php-cgi (y, con el acceso remoto, varios
+            // dispositivos) escribiendo a la vez, el modo por defecto
+            // bloquea a los lectores mientras alguien escribe y arroja
+            // "database is locked". En WAL lecturas y escrituras no se
+            // estorban; una escritura que choca con otra espera hasta
+            // busy_timeout ms en vez de fallar al instante. OJO: en WAL el
+            // estado vivo de la base puede estar en database.sqlite-wal y no
+            // solo en database.sqlite — ver ARQUITECTURA_TAURI.md §6.2 antes
+            // de copiar el archivo a mano.
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE', 'wal'),
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
         ],
