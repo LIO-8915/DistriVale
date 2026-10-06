@@ -32,3 +32,6 @@ auth.json
 CONTEXTO_SESION.md
 RELACION_BD_FINANCIERAS.md
 DistriValeWeb/database/importaciones/
+
+# Prompts y capturas pendientes de ejecutar (solo locales)
+PENDIENTE/
